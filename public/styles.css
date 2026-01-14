@@ -1694,14 +1694,13 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2rem;
+    gap: 1.5rem;
     padding: 2rem;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     width: 90%;
-    max-width: 600px;
-    min-height: 300px;
+    max-width: 500px;
 }
 
 .review-flag-container.hidden {
@@ -1709,7 +1708,7 @@ body {
 }
 
 .review-flag-display {
-    max-width: 400px;
+    max-width: 350px;
     width: 100%;
     aspect-ratio: 3/2;
     display: flex;
@@ -1728,43 +1727,48 @@ body {
     object-fit: cover;
 }
 
-.review-flag-answer {
+.review-correct-answer {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
     text-align: center;
 }
 
-.review-answer-label {
-    font-size: 0.875rem;
-    color: var(--text-muted);
-    margin-bottom: 0.5rem;
+.review-player-result {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
 }
 
-.review-player-answer {
-    font-size: 1.5rem;
-    font-weight: 600;
+.review-player-pseudo {
+    font-size: 1rem;
     color: var(--text-primary);
-    margin-bottom: 0.5rem;
+    font-weight: 500;
 }
 
-.review-flag-result {
-    font-size: 1.125rem;
+.review-given-answer {
+    font-size: 1.25rem;
     font-weight: 600;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 1.25rem;
     border-radius: var(--radius-sm);
+    margin: 0;
 }
 
-.review-flag-result.correct {
+.review-given-answer.correct {
     color: var(--secondary);
-    background: rgba(16, 185, 129, 0.1);
+    background: rgba(16, 185, 129, 0.15);
 }
 
-.review-flag-result.incorrect {
+.review-given-answer.incorrect {
     color: var(--danger);
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(239, 68, 68, 0.15);
 }
 
-.review-flag-result.no-answer {
+.review-given-answer.no-answer {
     color: var(--text-muted);
-    background: rgba(100, 116, 139, 0.1);
+    background: rgba(100, 116, 139, 0.15);
 }
 
 .review-controls {

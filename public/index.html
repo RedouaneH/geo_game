@@ -301,22 +301,11 @@
                     <span>+</span><span id="result-points">950</span><span> points</span>
                 </div>
                 <button id="next-btn" class="btn-primary">
-                    <span>Question suivante</span>
+                    <span>Continuer</span>
                     <svg viewBox="0 0 24 24" width="24" height="24">
                         <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
                     </svg>
                 </button>
-            </div>
-        </div>
-        
-        <!-- Indicateur d'enregistrement (Multi) -->
-        <div id="multi-registered-overlay" class="multi-registered-overlay hidden">
-            <div class="registered-card">
-                <div class="registered-icon">✅</div>
-                <p id="registered-status">Réponse enregistrée ! Vous pouvez cliquer ailleurs pour modifier.</p>
-                <div class="registered-counter">
-                    <span id="registered-count">0</span>/<span id="total-players-game">0</span> ont répondu
-                </div>
             </div>
         </div>
     </div>
@@ -375,33 +364,31 @@
             </div>
             
             <div class="review-content">
-                <div class="review-info-bar">
-                    <h2 id="review-player-info" class="review-player-name">Joueur</h2>
-                    <div class="review-separator">•</div>
-                    <div class="review-country">
-                        <span>Pays :</span>
-                        <strong id="review-country-name">France</strong>
-                    </div>
-                </div>
-                
                 <div id="review-map-container" class="review-map-container">
                     <div id="review-map" class="review-map"></div>
                 </div>
                 
                 <!-- Conteneur pour le mode drapeaux -->
                 <div id="review-flag-container" class="review-flag-container hidden">
+                    <p id="review-correct-answer" class="review-correct-answer">-</p>
                     <div class="review-flag-display">
                         <img id="review-flag-image" src="" alt="Drapeau du pays">
                     </div>
-                    <div class="review-flag-answer">
-                        <p class="review-answer-label">Réponse donnée :</p>
-                        <p id="review-player-answer" class="review-player-answer">-</p>
-                        <p id="review-flag-result" class="review-flag-result">-</p>
+                    <div class="review-player-result">
+                        <span id="review-player-pseudo" class="review-player-pseudo">-</span>
+                        <p id="review-given-answer" class="review-given-answer">-</p>
                     </div>
                 </div>
+                
+                <!-- Éléments cachés pour compatibilité JS -->
+                <div id="review-info-bar" style="display:none;">
+                    <h2 id="review-player-info"></h2>
+                    <strong id="review-country-name"></strong>
+                </div>
+                <p id="review-player-answer" style="display:none;"></p>
             </div>
             
-            <!-- Éléments cachés pour compatibilité JS -->
+            <!-- Éléments cachés pour compatibilité JS (location mode) -->
             <div id="review-result-emoji" style="display:none;"></div>
             <div id="review-result-title" style="display:none;"></div>
             <div id="review-distance" style="display:none;"></div>
