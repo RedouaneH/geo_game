@@ -3,6 +3,167 @@
  * Logique principale du jeu
  */
 
+// Mapping des noms de pays français vers anglais (pour le GeoJSON)
+const COUNTRY_NAME_MAPPING = {
+    // Europe
+    "France": "France",
+    "Allemagne": "Germany",
+    "Italie": "Italy",
+    "Espagne": "Spain",
+    "Royaume-Uni": "United Kingdom",
+    "Portugal": "Portugal",
+    "Grèce": "Greece",
+    "Suisse": "Switzerland",
+    "Pays-Bas": "Netherlands",
+    "Belgique": "Belgium",
+    "Pologne": "Poland",
+    "Suède": "Sweden",
+    "Norvège": "Norway",
+    "Finlande": "Finland",
+    "Autriche": "Austria",
+    "République Tchèque": "Czech Republic",
+    "Irlande": "Ireland",
+    "Danemark": "Denmark",
+    "Hongrie": "Hungary",
+    "Roumanie": "Romania",
+    "Ukraine": "Ukraine",
+    "Croatie": "Croatia",
+    "Slovénie": "Slovenia",
+    "Slovaquie": "Slovakia",
+    "Estonie": "Estonia",
+    "Lettonie": "Latvia",
+    "Lituanie": "Lithuania",
+    "Albanie": "Albania",
+    "Macédoine du Nord": "Macedonia",
+    "Monténégro": "Montenegro",
+    "Luxembourg": "Luxembourg",
+    "Moldavie": "Moldova",
+    "Bosnie-Herzégovine": "Bosnia and Herzegovina",
+    "Serbie": "Serbia",
+    // Asie
+    "Chine": "China",
+    "Japon": "Japan",
+    "Inde": "India",
+    "Russie": "Russia",
+    "Corée du Sud": "South Korea",
+    "Thaïlande": "Thailand",
+    "Vietnam": "Vietnam",
+    "Indonésie": "Indonesia",
+    "Turquie": "Turkey",
+    "Philippines": "Philippines",
+    "Malaisie": "Malaysia",
+    "Pakistan": "Pakistan",
+    "Bangladesh": "Bangladesh",
+    "Iran": "Iran",
+    "Irak": "Iraq",
+    "Arabie Saoudite": "Saudi Arabia",
+    "Kazakhstan": "Kazakhstan",
+    "Myanmar": "Myanmar",
+    "Népal": "Nepal",
+    "Cambodge": "Cambodia",
+    "Sri Lanka": "Sri Lanka",
+    "Ouzbékistan": "Uzbekistan",
+    "Turkménistan": "Turkmenistan",
+    "Tadjikistan": "Tajikistan",
+    "Kirghizistan": "Kyrgyzstan",
+    "Laos": "Laos",
+    "Mongolie": "Mongolia",
+    "Bhoutan": "Bhutan",
+    "Azerbaïdjan": "Azerbaijan",
+    "Géorgie": "Georgia",
+    "Arménie": "Armenia",
+    "Jordanie": "Jordan",
+    "Liban": "Lebanon",
+    "Koweït": "Kuwait",
+    "Oman": "Oman",
+    "Yémen": "Yemen",
+    "Afghanistan": "Afghanistan",
+    // Afrique
+    "Égypte": "Egypt",
+    "Maroc": "Morocco",
+    "Afrique du Sud": "South Africa",
+    "Kenya": "Kenya",
+    "Nigeria": "Nigeria",
+    "Algérie": "Algeria",
+    "Tunisie": "Tunisia",
+    "Éthiopie": "Ethiopia",
+    "Ghana": "Ghana",
+    "Tanzanie": "Tanzania",
+    "Côte d'Ivoire": "Ivory Coast",
+    "Sénégal": "Senegal",
+    "Cameroun": "Cameroon",
+    "Madagascar": "Madagascar",
+    "Ouganda": "Uganda",
+    "République Démocratique du Congo": "Democratic Republic of the Congo",
+    "Mozambique": "Mozambique",
+    "Zimbabwe": "Zimbabwe",
+    "Angola": "Angola",
+    "Burkina Faso": "Burkina Faso",
+    "Mali": "Mali",
+    "Niger": "Niger",
+    "Tchad": "Chad",
+    "Soudan": "Sudan",
+    "Libye": "Libya",
+    "Mauritanie": "Mauritania",
+    "Namibie": "Namibia",
+    "Botswana": "Botswana",
+    "Zambie": "Zambia",
+    "Malawi": "Malawi",
+    "Rwanda": "Rwanda",
+    "Bénin": "Benin",
+    "Togo": "Togo",
+    "Gabon": "Gabon",
+    "Congo": "Republic of the Congo",
+    "Centrafrique": "Central African Republic",
+    "Érythrée": "Eritrea",
+    "Somalie": "Somalia",
+    "Djibouti": "Djibouti",
+    // Amérique du Nord
+    "États-Unis": "United States of America",
+    "Canada": "Canada",
+    "Mexique": "Mexico",
+    "Cuba": "Cuba",
+    "Guatemala": "Guatemala",
+    "Honduras": "Honduras",
+    "Nicaragua": "Nicaragua",
+    "Costa Rica": "Costa Rica",
+    "Panama": "Panama",
+    "Jamaïque": "Jamaica",
+    "Haïti": "Haiti",
+    "République Dominicaine": "Dominican Republic",
+    "Belize": "Belize",
+    "El Salvador": "El Salvador",
+    "Trinité-et-Tobago": "Trinidad and Tobago",
+    "Bahamas": "The Bahamas",
+    // Amérique du Sud
+    "Brésil": "Brazil",
+    "Argentine": "Argentina",
+    "Chili": "Chile",
+    "Pérou": "Peru",
+    "Colombie": "Colombia",
+    "Venezuela": "Venezuela",
+    "Équateur": "Ecuador",
+    "Bolivie": "Bolivia",
+    "Paraguay": "Paraguay",
+    "Uruguay": "Uruguay",
+    "Guyana": "Guyana",
+    "Suriname": "Suriname",
+    // Océanie
+    "Australie": "Australia",
+    "Nouvelle-Zélande": "New Zealand",
+    "Fidji": "Fiji",
+    "Papouasie-Nouvelle-Guinée": "Papua New Guinea",
+    "Vanuatu": "Vanuatu",
+    "Îles Salomon": "Solomon Islands",
+    "Samoa": "Samoa",
+    "Tonga": "Tonga",
+    "Micronésie": "Federated States of Micronesia",
+    "Palaos": "Palau",
+    "Kiribati": "Kiribati",
+    "Nauru": "Nauru",
+    "Tuvalu": "Tuvalu"
+};
+
 class GeoQuiz {
     constructor() {
         // Configuration
@@ -164,13 +325,111 @@ class GeoQuiz {
             line: null
         };
 
+        // GeoJSON des frontières des pays
+        this.countriesGeoJSON = null;
+        this.geoJSONLoaded = false;
+
         this.init();
+    }
+
+    // ==================== GEOJSON LOADING ====================
+
+    async loadCountriesGeoJSON() {
+        try {
+            const response = await fetch('/countries-geo.json');
+            if (!response.ok) {
+                throw new Error('Impossible de charger les frontières des pays');
+            }
+            this.countriesGeoJSON = await response.json();
+            this.geoJSONLoaded = true;
+            console.log('✅ GeoJSON des frontières chargé avec succès');
+        } catch (error) {
+            console.error('❌ Erreur lors du chargement du GeoJSON:', error);
+            // Le jeu continue avec le mode distance classique si le GeoJSON échoue
+            this.geoJSONLoaded = false;
+        }
+    }
+
+    /**
+     * Trouve la feature GeoJSON d'un pays par son nom français
+     */
+    findCountryFeature(frenchName) {
+        if (!this.countriesGeoJSON || !this.geoJSONLoaded) {
+            return null;
+        }
+
+        const englishName = COUNTRY_NAME_MAPPING[frenchName];
+        if (!englishName) {
+            console.warn(`Mapping non trouvé pour: ${frenchName}`);
+            return null;
+        }
+
+        const feature = this.countriesGeoJSON.features.find(
+            f => f.properties.name === englishName
+        );
+
+        if (!feature) {
+            console.warn(`Feature GeoJSON non trouvée pour: ${englishName}`);
+        }
+
+        return feature;
+    }
+
+    /**
+     * Vérifie si un point (lat, lng) est à l'intérieur d'un polygone de pays
+     */
+    isPointInCountry(lat, lng, feature) {
+        if (!feature || !feature.geometry) {
+            return false;
+        }
+
+        try {
+            const point = turf.point([lng, lat]); // Turf utilise [lng, lat]
+            return turf.booleanPointInPolygon(point, feature);
+        } catch (error) {
+            console.error('Erreur lors de la vérification point-in-polygon:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Calcule la distance en km entre un point et la frontière la plus proche d'un pays
+     */
+    distanceToCountryBorder(lat, lng, feature) {
+        if (!feature || !feature.geometry) {
+            return null;
+        }
+
+        try {
+            const point = turf.point([lng, lat]);
+            
+            // Convertir le polygone en lignes (frontières)
+            let lines;
+            if (feature.geometry.type === 'Polygon') {
+                lines = turf.polygonToLine(feature);
+            } else if (feature.geometry.type === 'MultiPolygon') {
+                lines = turf.polygonToLine(feature);
+            } else {
+                return null;
+            }
+
+            // Calculer la distance au point le plus proche sur les frontières
+            const nearestPoint = turf.nearestPointOnLine(lines, point);
+            const distance = turf.distance(point, nearestPoint, { units: 'kilometers' });
+            
+            return distance;
+        } catch (error) {
+            console.error('Erreur lors du calcul de distance à la frontière:', error);
+            return null;
+        }
     }
 
     init() {
         this.initSocket();
         this.bindEvents();
         this.initMap();
+        // Charger les frontières GeoJSON en arrière-plan
+        this.loadCountriesGeoJSON();
     }
 
     // ==================== SOCKET.IO ====================
@@ -877,10 +1136,8 @@ class GeoQuiz {
             // Vérifier qu'on a un pays en cours
             if (!this.state.currentCountry) return;
             
-            // Calculer la distance
-            const country = this.state.currentCountry;
-            const targetLatLng = L.latLng(country.lat, country.lng);
-            const distance = clickLatLng.distanceTo(targetLatLng) / 1000;
+            // Calculer la distance avec les frontières si disponibles
+            const distance = this.calculateDistanceToCountry(clickLatLng, this.state.currentCountry);
             
             // Enregistrer le clic (permet les modifications)
             this.state.pendingClick = {
@@ -933,6 +1190,39 @@ class GeoQuiz {
         }
 
         this.showResult(clickLatLng);
+    }
+
+    /**
+     * Calcule la distance entre un clic et un pays
+     * Si les frontières GeoJSON sont disponibles:
+     *   - Retourne 0 si le clic est dans le pays
+     *   - Retourne la distance à la frontière la plus proche sinon
+     * Sinon, utilise la distance au centre du pays (ancien comportement)
+     */
+    calculateDistanceToCountry(clickLatLng, country) {
+        // Essayer d'utiliser les frontières GeoJSON
+        if (this.geoJSONLoaded && this.countriesGeoJSON) {
+            const feature = this.findCountryFeature(country.name);
+            
+            if (feature) {
+                // Vérifier si le clic est dans le pays
+                if (this.isPointInCountry(clickLatLng.lat, clickLatLng.lng, feature)) {
+                    console.log(`🎯 Clic dans les frontières de ${country.name}`);
+                    return 0; // Distance 0 = dans le pays = score parfait
+                }
+                
+                // Calculer la distance à la frontière la plus proche
+                const distanceToBorder = this.distanceToCountryBorder(clickLatLng.lat, clickLatLng.lng, feature);
+                if (distanceToBorder !== null) {
+                    console.log(`📏 Distance à la frontière de ${country.name}: ${Math.round(distanceToBorder)} km`);
+                    return distanceToBorder;
+                }
+            }
+        }
+        
+        // Fallback: distance au centre du pays (ancien comportement)
+        const targetLatLng = L.latLng(country.lat, country.lng);
+        return clickLatLng.distanceTo(targetLatLng) / 1000;
     }
 
     showMultiRegisteredOverlay() {
@@ -1034,7 +1324,8 @@ class GeoQuiz {
         let points = 0;
 
         if (clickLatLng) {
-            distance = clickLatLng.distanceTo(targetLatLng) / 1000;
+            // Utiliser le nouveau calcul de distance avec les frontières
+            distance = this.calculateDistanceToCountry(clickLatLng, country);
             points = this.calculatePoints(distance);
 
             this.markers.click = L.marker(clickLatLng, {
