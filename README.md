@@ -7,8 +7,12 @@ GeoQuiz est une plateforme interactive et ludique conçue pour tester vos connai
 ## 🚀 Fonctionnalités principales
 
 ### 🎮 Modes de Jeu
-*   **Mode Solo** : Entraînez-vous à votre rythme avec trois niveaux de difficulté (Facile, Moyen, Difficile).
+*   **Mode Solo** : Entraînez-vous à votre rythme.
+    *   **Localisation** : Trouvez le pays sur la carte.
+    *   **Drapeaux** : Identifiez le pays correspondant au drapeau.
+    *   3 niveaux de difficulté (Facile, Moyen, Difficile).
 *   **Mode Multijoueur** : Créez des salons privés, invitez vos amis avec un code unique et affrontez-vous en temps réel jusqu'à 8 joueurs.
+    *   L'hôte peut choisir entre le mode **Localisation** et le mode **Drapeaux** pour tout le salon.
 
 ### 🗺️ Expérience Interactive
 *   **Carte Interactive** : Utilisation de Leaflet.js pour une navigation fluide et précise.

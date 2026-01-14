@@ -8,23 +8,33 @@ GeoQuiz est une application web interactive permettant de tester ses connaissanc
 
 ## ✅ Fonctionnalités Implémentées
 
+### Modes de Jeu (Disponibles en Solo et Multijoueur)
+1. **Mode Localisation (Carte)** :
+   - Le joueur doit localiser un pays donné sur une carte interactive.
+   - **Carte Interactive** : Utilisation de Leaflet.js.
+   - **Calcul de Score** : Basé sur la distance en kilomètres entre le clic et la position réelle (jusqu'à 1000 points).
+
+2. **Mode Drapeaux (Quiz)** :
+   - Un drapeau est affiché, le joueur doit choisir le bon pays parmi 4 propositions.
+   - **Calcul de Score** : Points fixes pour une bonne réponse (800 pts) + Bonus de rapidité (jusqu'à 200 pts).
+
 ### Mode Solo
-- **Carte Interactive** : Utilisation de Leaflet.js avec un fond de carte sombre et minimaliste.
 - **Système de Difficulté** :
-    - **Facile** : Pays célèbres, aide visuelle (indices), temps illimité.
+    - **Facile** : Pays célèbres, aide visuelle (indices), temps illimité (Localisation).
     - **Moyen** : Tous les continents, moins d'indices, 30 secondes par question.
     - **Difficile** : Pays plus obscurs, aucun indice, 15 secondes par question.
-- **Calcul de Score** : Basé sur la distance en kilomètres entre le clic et la position du pays.
-- **Statistiques de Fin de Partie** : Récapitulatif des performances (Parfaits, Bons, Moyens, Ratés).
+- **Disfonctionnement** : Choix entre le mode Localisation et le mode Drapeaux.
+- **Statistiques de Fin de Partie** : Récapitulatif des performances.
 
 ### Mode Multijoueur 🆕
-- **Système de Salons** : Créez un salon et partagez le code à 6 caractères avec vos amis.
-- **Jusqu'à 8 joueurs** par salon.
-- **Paramètres de l'Hôte** : Le créateur du salon peut modifier la difficulté, le nombre de questions (2 à 20) et le temps de réponse (10s à 60s) directement dans le lobby.
-- **Synchronisation en Temps Réel** : Tous les joueurs voient le même pays à trouver simultanément.
-- **Phase de Révision interactive** : Après chaque série de questions, l'hôte guide le groupe à travers les résultats de chaque joueur, un par un, sur la carte.
-- **Podium Final** : Affichage du classement complet avec les 3 premiers sur un podium animé.
-- **Gestion Automatique** : Les salons inactifs ou terminés sont automatiquement supprimés après 5 minutes.
+- **Système de Salons** : Créez un salon et partagez le code à 6 caractères.
+- **Jusqu'à 8 joueurs** simultanés.
+- **Choix du Mode** : L'hôte peut choisir entre Localisation ou Drapeaux pour le salon.
+- **Paramètres de l'Hôte** : Modification de la difficulté, du nombre de questions (2 à 20) et du temps de réponse (10s à 60s).
+- **Synchronisation en Temps Réel** : Tous les joueurs voient le même pays/drapeau en même temps.
+- **Phase de Révision interactive** : L'hôte guide le groupe à travers les résultats de chaque joueur après chaque round.
+- **Podium Final** : Affichage du classement complet avec animation.
+- **Gestion Automatique** : Nettoyage automatique des salons inactifs.
 
 ---
 
@@ -122,19 +132,31 @@ geo_game/
 
 ## 📊 Système de Points
 
+### Mode Localisation
+
 | Distance du pays | Points |
 |------------------|--------|
-| 0 - 300 km       | 1000   |
-| 300 - 500 km     | 900    |
-| 500 - 750 km     | 800    |
-| 750 - 1000 km    | 700    |
-| 1000 - 1500 km   | 550    |
-| 1500 - 2000 km   | 400    |
-| 2000 - 2500 km   | 300    |
-| 2500 - 3000 km   | 200    |
-| 3000 - 4000 km   | 100    |
-| 4000 - 5000 km   | 50     |
+| 0 km (Dans le pays)| 1000   |
+| 0 - 50 km        | 950    |
+| 50 - 100 km      | 900    |
+| 100 - 200 km     | 850    |
+| 200 - 300 km     | 800    |
+| 300 - 500 km     | 700    |
+| 500 - 750 km     | 600    |
+| 750 - 1000 km    | 500    |
+| 1000 - 1500 km   | 400    |
+| 1500 - 2000 km   | 300    |
+| 2000 - 2500 km   | 200    |
+| 2500 - 3000 km   | 100    |
+| 3000 - 4000 km   | 50     |
+| 4000 - 5000 km   | 25     |
 | > 5000 km        | 0      |
+
+### Mode Drapeaux
+
+- **Bonne réponse** : 800 points de base.
+- **Bonus de rapidité** : Jusqu'à 200 points supplémentaires en fonction du temps restant.
+- **Mauvaise réponse** : 0 point.
 
 ---
 
