@@ -293,7 +293,7 @@ io.on('connection', (socket) => {
     });
 
     // Un joueur enregistre/modifie sa réponse (pas de soumission finale)
-    socket.on('registerAnswer', ({ roomCode, clickLat, clickLng, distance, selectedOption, isCorrect }) => {
+    socket.on('registerAnswer', ({ roomCode, clickLat, clickLng, distance, selectedOption, isCorrect, clickedCountry }) => {
         const room = rooms.get(roomCode);
         if (!room || room.status !== 'playing') return;
         
@@ -331,7 +331,10 @@ io.on('connection', (socket) => {
             playerAnswer.clickLat = clickLat;
             playerAnswer.clickLng = clickLng;
             playerAnswer.distance = distance;
-            playerAnswer.points = calculatePoints(distance);
+            playerAnswer.clickedCountry = clickedCountry; // Nom anglais du pays cliqué
+            playerAnswer.isCorrect = isCorrect;
+            // En mode localisation, le score est basé sur correct/incorrect (1 ou 0)
+            playerAnswer.points = isCorrect ? 1 : 0;
         }
         
         // Informer tous les joueurs qu'un joueur a enregistré une réponse
@@ -634,6 +637,8 @@ function endCurrentRound(roomCode) {
                         clickLat: null,
                         clickLng: null,
                         distance: null,
+                        clickedCountry: null,
+                        isCorrect: false,
                         points: 0
                     });
                 }
@@ -737,11 +742,15 @@ function sendCurrentReviewState(roomCode) {
             clickLat: playerAnswer.clickLat,
             clickLng: playerAnswer.clickLng,
             distance: playerAnswer.distance,
+            clickedCountry: playerAnswer.clickedCountry,
+            isCorrect: playerAnswer.isCorrect,
             points: playerAnswer.points
         } : {
             clickLat: null,
             clickLng: null,
             distance: null,
+            clickedCountry: null,
+            isCorrect: false,
             points: 0
         };
     }
@@ -788,7 +797,7 @@ function finishReview(roomCode) {
     }, 5 * 60 * 1000);
 }
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
     console.log(`🌍 GeoQuiz Multijoueur lancé sur http://localhost:${PORT}`);
 });

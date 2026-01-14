@@ -325,6 +325,17 @@ body {
     cursor: not-allowed;
 }
 
+.btn-primary.btn-transparent {
+    background: transparent;
+    border: 2px solid var(--primary);
+    box-shadow: none;
+}
+
+.btn-primary.btn-transparent:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+}
+
 .btn-secondary {
     display: inline-flex;
     align-items: center;
@@ -1073,6 +1084,21 @@ body {
     filter: saturate(0.8) brightness(0.9);
 }
 
+/* Simplifier les tuiles de carte pour masquer les détails internes (rivières, régions, etc.) */
+.map-tiles-simplified {
+    filter: saturate(0.5) brightness(0.7) contrast(1.2);
+}
+
+/* Style pour les pays au survol (interactifs) */
+.leaflet-interactive {
+    cursor: pointer !important;
+}
+
+/* Animation pour les pays cliqués */
+.leaflet-overlay-pane path {
+    transition: fill-opacity 0.2s ease, stroke-width 0.2s ease;
+}
+
 .leaflet-control-zoom {
     border: none !important;
     box-shadow: var(--shadow-sm) !important;
@@ -1162,15 +1188,14 @@ body {
 
 .result-card {
     background: rgba(30, 41, 59, 0.95);
-    border: 1px solid var(--border);
+    border: 1px solid rgba(100, 116, 139, 0.4);
     border-radius: var(--radius);
-    padding: 3rem;
+    padding: 2.5rem;
     text-align: center;
     max-width: 400px;
     width: 90%;
     animation: scaleIn 0.4s ease;
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .result-card.multi-result {
@@ -1236,6 +1261,70 @@ body {
 .result-points span:last-child {
     font-size: 1.5rem;
     color: var(--text-secondary);
+}
+
+/* Style pour le résultat correct/incorrect en mode localisation */
+#result-points {
+    transition: color 0.3s ease;
+}
+
+/* Checkmark vert pour correct */
+.result-card:has(h2.excellent) #result-points {
+    color: var(--secondary);
+}
+
+/* X rouge pour incorrect */
+.result-card:has(h2.poor) #result-points {
+    color: var(--danger);
+}
+
+/* Bouton suivant */
+.btn-next {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2000;
+    background: var(--primary);
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: var(--shadow);
+    animation: slideUpBtn 0.4s ease;
+}
+
+.btn-next:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateX(-50%) translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+.btn-next:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-next.hidden {
+    display: none;
+}
+
+@keyframes slideUpBtn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
 }
 
 /* Multi Registered Overlay */
