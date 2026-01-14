@@ -796,6 +796,7 @@ body {
     z-index: 1000;
     box-shadow: var(--shadow);
     animation: slideUp 0.5s ease;
+    pointer-events: none; /* Permettre les clics de passer à travers */
 }
 
 .hint-box.hidden {
@@ -819,106 +820,6 @@ body {
 
 #hint-text {
     color: var(--text-secondary);
-}
-
-/* Multiplayer Leaderboard Panel */
-.leaderboard-panel {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: rgba(30, 41, 59, 0.95);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1rem;
-    min-width: 200px;
-    max-width: 250px;
-    z-index: 1000;
-    backdrop-filter: blur(10px);
-}
-
-.leaderboard-panel.hidden {
-    display: none;
-}
-
-.leaderboard-panel h3 {
-    font-size: 1rem;
-    margin-bottom: 0.75rem;
-    text-align: center;
-}
-
-.leaderboard-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-.leaderboard-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    background: var(--bg-dark);
-    border-radius: var(--radius-sm);
-    font-size: 0.875rem;
-}
-
-.leaderboard-item.current-player {
-    background: rgba(99, 102, 241, 0.2);
-    border: 1px solid var(--primary);
-}
-
-.leaderboard-item.answered {
-    opacity: 0.6;
-}
-
-.leaderboard-rank {
-    width: 24px;
-    height: 24px;
-    background: var(--border);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.75rem;
-}
-
-.leaderboard-rank.rank-1 {
-    background: linear-gradient(135deg, #ffd700, #ffb347);
-    color: var(--bg-dark);
-}
-
-.leaderboard-rank.rank-2 {
-    background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
-    color: var(--bg-dark);
-}
-
-.leaderboard-rank.rank-3 {
-    background: linear-gradient(135deg, #cd7f32, #b87333);
-    color: var(--bg-dark);
-}
-
-.leaderboard-name {
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.leaderboard-score {
-    font-weight: 600;
-    color: var(--secondary);
-}
-
-.answer-status {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--border);
-    text-align: center;
-    font-size: 0.75rem;
-    color: var(--text-muted);
 }
 
 /* Overlays */
@@ -1020,26 +921,83 @@ body {
     color: var(--text-secondary);
 }
 
-.waiting-others {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    color: var(--text-muted);
+/* Multi Registered Overlay */
+.multi-registered-overlay {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1500;
+    animation: slideUp 0.3s ease;
+    pointer-events: none; /* Permettre les clics de passer à travers */
+}
+
+.multi-registered-overlay.hidden {
+    display: none;
+}
+
+.registered-card {
+    background: rgba(16, 185, 129, 0.95);
+    border: 2px solid var(--secondary);
+    border-radius: var(--radius);
+    padding: 1rem 1.5rem;
+    text-align: center;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    pointer-events: none; /* Permettre les clics de passer à travers */
+}
+
+.registered-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.registered-card p {
+    color: white;
     font-size: 0.875rem;
+    margin-bottom: 0.5rem;
 }
 
-.spinner {
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+.registered-counter {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.8);
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
+/* Time Up Message */
+.timeup-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(245, 158, 11, 0.95);
+    color: white;
+    padding: 1.5rem 2.5rem;
+    border-radius: var(--radius);
+    font-size: 1.25rem;
+    font-weight: 600;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: var(--shadow);
+    pointer-events: none; /* Permettre les clics de passer à travers */
+}
+
+.timeup-message.visible {
+    opacity: 1;
+}
+
+/* Pending Marker (for multi mode) */
+.pending-marker-circle {
+    animation: pulse-circle 1.5s ease infinite;
+}
+
+@keyframes pulse-circle {
+    0%, 100% { 
+        opacity: 1;
+    }
+    50% { 
+        opacity: 0.7;
+    }
 }
 
 /* End Screen */
@@ -1266,6 +1224,151 @@ body {
     color: var(--secondary);
 }
 
+/* Review Screen */
+#review-screen {
+    background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1a2e 50%, var(--bg-dark) 100%);
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.review-container {
+    max-width: 900px;
+    width: 100%;
+    animation: fadeInUp 0.5s ease;
+}
+
+.review-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.review-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, var(--primary-light), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.review-round-info {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+}
+
+.review-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.review-player-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+
+.review-player-name {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--accent);
+}
+
+.review-country {
+    color: var(--text-secondary);
+}
+
+.review-country strong {
+    color: var(--text-primary);
+    display: block;
+    font-size: 1.25rem;
+    margin-top: 0.25rem;
+}
+
+.review-result-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.review-emoji {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.review-result-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.review-result-title.excellent {
+    color: var(--secondary);
+}
+
+.review-result-title.good {
+    color: var(--primary-light);
+}
+
+.review-result-title.average {
+    color: var(--accent);
+}
+
+.review-result-title.poor {
+    color: var(--danger);
+}
+
+.review-distance {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.review-points {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.review-map-container {
+    grid-column: 1 / -1;
+    height: 300px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.review-map {
+    width: 100%;
+    height: 100%;
+}
+
+.review-controls {
+    text-align: center;
+}
+
+.review-host-controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.review-waiting-message {
+    color: var(--text-muted);
+    font-style: italic;
+    display: none;
+}
+
 /* Markers */
 .click-marker {
     width: 20px;
@@ -1374,12 +1477,10 @@ body {
         transform: none;
     }
     
-    .leaderboard-panel {
-        top: auto;
-        bottom: 5rem;
-        right: 0.5rem;
-        left: 0.5rem;
-        max-width: none;
+    .multi-registered-overlay {
+        left: 1rem;
+        right: 1rem;
+        transform: none;
     }
     
     .podium {
@@ -1397,6 +1498,18 @@ body {
     .podium-name {
         font-size: 0.9rem;
         max-width: 80px;
+    }
+    
+    .review-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .review-map-container {
+        height: 250px;
+    }
+    
+    .review-host-controls {
+        flex-direction: column;
     }
 }
 
@@ -1423,18 +1536,6 @@ body {
     }
 }
 
-/* Pulse Animation for Countries */
-@keyframes pulse {
-    0%, 100% { 
-        opacity: 0.6;
-        transform: scale(1);
-    }
-    50% { 
-        opacity: 1;
-        transform: scale(1.05);
-    }
-}
-
 /* Loading State */
 .loading {
     display: flex;
@@ -1453,3 +1554,6 @@ body {
     animation: spin 1s linear infinite;
 }
 
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

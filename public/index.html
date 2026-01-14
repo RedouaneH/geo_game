@@ -226,20 +226,9 @@
                 <span class="hint-icon">💡</span>
                 <span id="hint-text">Indice: Ce pays est en Europe</span>
             </div>
-            
-            <!-- Leaderboard multijoueur -->
-            <div id="multiplayer-leaderboard" class="leaderboard-panel hidden">
-                <h3>🏆 Classement</h3>
-                <div id="leaderboard-list" class="leaderboard-list">
-                    <!-- Joueurs ajoutés dynamiquement -->
-                </div>
-                <div id="answer-status" class="answer-status">
-                    <span id="answered-count">0</span>/<span id="total-players">0</span> ont répondu
-                </div>
-            </div>
         </div>
 
-        <!-- Résultat après chaque réponse -->
+        <!-- Résultat après chaque réponse (Solo uniquement) -->
         <div id="result-overlay" class="overlay hidden">
             <div class="result-card">
                 <div class="result-emoji" id="result-emoji">🎯</div>
@@ -257,18 +246,13 @@
             </div>
         </div>
         
-        <!-- Résultat multijoueur (attente des autres) -->
-        <div id="multi-result-overlay" class="overlay hidden">
-            <div class="result-card multi-result">
-                <div class="result-emoji" id="multi-result-emoji">🎯</div>
-                <h2 id="multi-result-title">Excellent !</h2>
-                <p id="multi-result-distance">Vous étiez à 150 km</p>
-                <div class="result-points">
-                    <span>+</span><span id="multi-result-points">950</span><span> points</span>
-                </div>
-                <div class="waiting-others">
-                    <div class="spinner"></div>
-                    <span>En attente des autres joueurs...</span>
+        <!-- Indicateur d'enregistrement (Multi) -->
+        <div id="multi-registered-overlay" class="multi-registered-overlay hidden">
+            <div class="registered-card">
+                <div class="registered-icon">✅</div>
+                <p id="registered-status">Réponse enregistrée ! Vous pouvez cliquer ailleurs pour modifier.</p>
+                <div class="registered-counter">
+                    <span id="registered-count">0</span>/<span id="total-players-game">0</span> ont répondu
                 </div>
             </div>
         </div>
@@ -315,6 +299,55 @@
                     </svg>
                     <span>Menu principal</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran de révision des résultats (Multi) -->
+    <div id="review-screen" class="screen">
+        <div class="review-container">
+            <div class="review-header">
+                <h1>📊 Révision des résultats</h1>
+                <p id="review-round-info" class="review-round-info">Question 1/10</p>
+            </div>
+            
+            <div class="review-content">
+                <div class="review-player-card">
+                    <h2 id="review-player-info" class="review-player-name">Joueur (1/4)</h2>
+                    <div class="review-country">
+                        <span>Pays recherché :</span>
+                        <strong id="review-country-name">France</strong>
+                    </div>
+                </div>
+                
+                <div class="review-result-section">
+                    <div class="review-emoji" id="review-result-emoji">🎯</div>
+                    <h3 id="review-result-title" class="review-result-title excellent">Excellent !</h3>
+                    <p id="review-distance" class="review-distance">Distance: 150 km</p>
+                    <div class="review-points" id="review-points">+950 points</div>
+                </div>
+                
+                <div id="review-map-container" class="review-map-container">
+                    <div id="review-map" class="review-map"></div>
+                </div>
+            </div>
+            
+            <div class="review-controls">
+                <div id="review-host-controls" class="review-host-controls">
+                    <button id="skip-question-btn" class="btn-secondary">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M6,18L14.5,12L6,6M8,9.86L11.03,12L8,14.14M16,6H18V18H16"/>
+                        </svg>
+                        <span>Passer à la question suivante</span>
+                    </button>
+                    <button id="next-player-btn" class="btn-primary">
+                        <span>Joueur suivant</span>
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <p id="review-waiting-message" class="review-waiting-message">En attente de l'hôte...</p>
             </div>
         </div>
     </div>
@@ -370,4 +403,3 @@
     <script src="game.js"></script>
 </body>
 </html>
-

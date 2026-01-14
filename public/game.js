@@ -53,7 +53,9 @@ class GeoQuiz {
             username: null,
             isHost: false,
             players: [],
-            hasAnswered: false
+            // Nouveau: pour le mode multi - enregistrement du clic sans soumission immédiate
+            pendingClick: null, // {lat, lng, distance}
+            hasRegistered: false
         };
 
         // Éléments DOM
@@ -65,7 +67,8 @@ class GeoQuiz {
                 waitingRoom: document.getElementById('waiting-room-screen'),
                 game: document.getElementById('game-screen'),
                 end: document.getElementById('end-screen'),
-                multiEnd: document.getElementById('multi-end-screen')
+                multiEnd: document.getElementById('multi-end-screen'),
+                review: document.getElementById('review-screen')
             },
             // Mode selection
             soloModeBtn: document.getElementById('solo-mode-btn'),
@@ -109,17 +112,11 @@ class GeoQuiz {
             resultDistance: document.getElementById('result-distance'),
             resultPoints: document.getElementById('result-points'),
             nextBtn: document.getElementById('next-btn'),
-            // Multi Result
-            multiResultOverlay: document.getElementById('multi-result-overlay'),
-            multiResultEmoji: document.getElementById('multi-result-emoji'),
-            multiResultTitle: document.getElementById('multi-result-title'),
-            multiResultDistance: document.getElementById('multi-result-distance'),
-            multiResultPoints: document.getElementById('multi-result-points'),
-            // Leaderboard
-            multiplayerLeaderboard: document.getElementById('multiplayer-leaderboard'),
-            leaderboardList: document.getElementById('leaderboard-list'),
-            answeredCount: document.getElementById('answered-count'),
-            totalPlayers: document.getElementById('total-players'),
+            // Multi - indicateur d'enregistrement
+            multiRegisteredOverlay: document.getElementById('multi-registered-overlay'),
+            registeredStatus: document.getElementById('registered-status'),
+            registeredCount: document.getElementById('registered-count'),
+            totalPlayersGame: document.getElementById('total-players-game'),
             // End Screen Solo
             finalScore: document.getElementById('final-score'),
             statPerfect: document.getElementById('stat-perfect'),
@@ -136,12 +133,32 @@ class GeoQuiz {
             podium3: document.getElementById('podium-3'),
             fullLeaderboard: document.getElementById('full-leaderboard'),
             multiConfetti: document.getElementById('multi-confetti'),
-            multiMenuBtn: document.getElementById('multi-menu-btn')
+            multiMenuBtn: document.getElementById('multi-menu-btn'),
+            // Review Screen
+            reviewRoundInfo: document.getElementById('review-round-info'),
+            reviewPlayerInfo: document.getElementById('review-player-info'),
+            reviewCountryName: document.getElementById('review-country-name'),
+            reviewResultEmoji: document.getElementById('review-result-emoji'),
+            reviewResultTitle: document.getElementById('review-result-title'),
+            reviewDistance: document.getElementById('review-distance'),
+            reviewPoints: document.getElementById('review-points'),
+            reviewMapContainer: document.getElementById('review-map-container'),
+            nextPlayerBtn: document.getElementById('next-player-btn'),
+            skipQuestionBtn: document.getElementById('skip-question-btn'),
+            reviewHostControls: document.getElementById('review-host-controls'),
+            reviewWaitingMessage: document.getElementById('review-waiting-message')
         };
 
         // Carte Leaflet
         this.map = null;
+        this.reviewMap = null;
         this.markers = {
+            click: null,
+            target: null,
+            line: null,
+            pending: null // Marqueur pour le clic en attente (multi)
+        };
+        this.reviewMarkers = {
             click: null,
             target: null,
             line: null
@@ -171,8 +188,12 @@ class GeoQuiz {
         // Game Events
         this.state.socket.on('gameStarted', (data) => this.onGameStarted(data));
         this.state.socket.on('newRound', (data) => this.onNewRound(data));
-        this.state.socket.on('playerAnswered', (data) => this.onPlayerAnswered(data));
-        this.state.socket.on('roundEnded', (data) => this.onRoundEnded(data));
+        this.state.socket.on('playerRegistered', (data) => this.onPlayerRegistered(data));
+        this.state.socket.on('roundTimeUp', (data) => this.onRoundTimeUp(data));
+        
+        // Review Events
+        this.state.socket.on('reviewPhaseStarted', (data) => this.onReviewPhaseStarted(data));
+        this.state.socket.on('showPlayerResult', (data) => this.onShowPlayerResult(data));
         this.state.socket.on('gameEnded', (data) => this.onGameEnded(data));
     }
 
@@ -209,6 +230,14 @@ class GeoQuiz {
         this.elements.copyCodeBtn.addEventListener('click', () => this.copyRoomCode());
         this.elements.leaveRoomBtn.addEventListener('click', () => this.leaveRoom());
         this.elements.startMultiGameBtn.addEventListener('click', () => this.startMultiGame());
+        
+        // Review controls
+        if (this.elements.nextPlayerBtn) {
+            this.elements.nextPlayerBtn.addEventListener('click', () => this.showNextPlayerResult());
+        }
+        if (this.elements.skipQuestionBtn) {
+            this.elements.skipQuestionBtn.addEventListener('click', () => this.skipToNextQuestion());
+        }
     }
 
     // ==================== MODE & SCREEN MANAGEMENT ====================
@@ -228,6 +257,11 @@ class GeoQuiz {
         });
         if (this.elements.screens[screenName]) {
             this.elements.screens[screenName].classList.add('active');
+        }
+        
+        // Initialiser la carte de révision si nécessaire
+        if (screenName === 'review' && !this.reviewMap) {
+            setTimeout(() => this.initReviewMap(), 100);
         }
     }
 
@@ -257,9 +291,6 @@ class GeoQuiz {
         } else {
             this.elements.timerContainer.classList.add('hidden');
         }
-
-        // Cacher le leaderboard en solo
-        this.elements.multiplayerLeaderboard.classList.add('hidden');
 
         this.showScreen('game');
 
@@ -439,16 +470,13 @@ class GeoQuiz {
 
         const diffConfig = this.config.difficulties[this.state.difficulty];
         this.elements.currentDifficulty.textContent = diffConfig.name;
-        this.elements.score.textContent = '0';
+        this.elements.score.textContent = '-'; // On ne montre pas le score en multi
 
         if (diffConfig.timer) {
             this.elements.timerContainer.classList.remove('hidden');
         } else {
             this.elements.timerContainer.classList.add('hidden');
         }
-
-        // Afficher le leaderboard
-        this.elements.multiplayerLeaderboard.classList.remove('hidden');
 
         this.showScreen('game');
 
@@ -460,11 +488,14 @@ class GeoQuiz {
     onNewRound(data) {
         this.state.currentRound = data.round;
         this.state.currentCountry = data.country;
-        this.state.hasAnswered = false;
+        this.state.pendingClick = null;
+        this.state.hasRegistered = false;
 
-        // Masquer les résultats
+        // Masquer les overlays
         this.elements.resultOverlay.classList.add('hidden');
-        this.elements.multiResultOverlay.classList.add('hidden');
+        if (this.elements.multiRegisteredOverlay) {
+            this.elements.multiRegisteredOverlay.classList.add('hidden');
+        }
 
         // Nettoyer les marqueurs
         this.clearMarkers();
@@ -472,6 +503,14 @@ class GeoQuiz {
         // Mettre à jour l'UI
         this.elements.currentRound.textContent = data.round;
         this.elements.countryName.textContent = data.country.name;
+
+        // Réinitialiser le compteur de réponses
+        if (this.elements.registeredCount) {
+            this.elements.registeredCount.textContent = '0';
+        }
+        if (this.elements.totalPlayersGame) {
+            this.elements.totalPlayersGame.textContent = this.state.players.length;
+        }
 
         // Gérer l'indice
         const diffConfig = this.config.difficulties[this.state.difficulty];
@@ -482,9 +521,6 @@ class GeoQuiz {
             this.elements.hintContainer.classList.add('hidden');
         }
 
-        // Mettre à jour le leaderboard
-        this.updateLeaderboard(data.leaderboard, 0, this.state.players.length);
-
         // Réinitialiser la vue de la carte
         this.map.setView([20, 0], 2);
 
@@ -494,63 +530,263 @@ class GeoQuiz {
         }
     }
 
-    onPlayerAnswered(data) {
-        this.updateLeaderboard(data.leaderboard, data.answeredCount, data.totalPlayers);
+    onPlayerRegistered(data) {
+        // Mettre à jour le compteur de joueurs ayant enregistré
+        if (this.elements.registeredCount) {
+            this.elements.registeredCount.textContent = data.registeredCount;
+        }
+        if (this.elements.totalPlayersGame) {
+            this.elements.totalPlayersGame.textContent = data.totalPlayers;
+        }
     }
 
-    onRoundEnded(data) {
+    onRoundTimeUp(data) {
         // Arrêter le timer
         if (this.state.timer) {
             clearInterval(this.state.timer);
             this.state.timer = null;
         }
 
-        // Mettre à jour le leaderboard final du round
-        this.updateLeaderboard(data.leaderboard, data.totalPlayers, data.totalPlayers);
-
-        // Afficher la position correcte si pas déjà affichée
-        const country = data.country;
-        const targetLatLng = L.latLng(country.lat, country.lng);
-
-        if (!this.markers.target) {
-            this.markers.target = L.marker(targetLatLng, {
-                icon: L.divIcon({
-                    className: 'target-marker',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
-                })
-            }).addTo(this.map);
+        // Afficher brièvement un message "Temps écoulé"
+        if (this.state.mode === 'multi') {
+            this.showTimeUpMessage();
         }
+    }
 
-        // Zoomer sur la cible
-        this.map.setView(targetLatLng, 4);
+    showTimeUpMessage() {
+        // Créer ou mettre à jour le message temporaire
+        let msgEl = document.getElementById('timeup-message');
+        if (!msgEl) {
+            msgEl = document.createElement('div');
+            msgEl.id = 'timeup-message';
+            msgEl.className = 'timeup-message';
+            document.getElementById('map-container').appendChild(msgEl);
+        }
+        msgEl.textContent = '⏰ Temps écoulé ! Question suivante...';
+        msgEl.classList.add('visible');
+        
+        setTimeout(() => {
+            msgEl.classList.remove('visible');
+        }, 1800);
+    }
+
+    // === PHASE DE RÉVISION ===
+
+    onReviewPhaseStarted(data) {
+        // Stocker si on est l'hôte
+        this.state.isHost = data.hostId === this.state.socket.id;
+        
+        // Afficher l'écran de révision
+        this.showScreen('review');
+        
+        // Afficher/masquer les contrôles selon si on est l'hôte
+        if (this.elements.reviewHostControls) {
+            this.elements.reviewHostControls.style.display = this.state.isHost ? 'flex' : 'none';
+        }
+        if (this.elements.reviewWaitingMessage) {
+            this.elements.reviewWaitingMessage.style.display = this.state.isHost ? 'none' : 'block';
+        }
+    }
+
+    onShowPlayerResult(data) {
+        // Mettre à jour les infos du round
+        if (this.elements.reviewRoundInfo) {
+            this.elements.reviewRoundInfo.textContent = `Question ${data.round}/${data.totalRounds}`;
+        }
+        
+        // Mettre à jour les infos du joueur
+        if (this.elements.reviewPlayerInfo) {
+            const isCurrentUser = data.player.id === this.state.socket.id;
+            this.elements.reviewPlayerInfo.textContent = `${data.player.username}${isCurrentUser ? ' (vous)' : ''} (${data.playerIndex + 1}/${data.totalPlayers})`;
+        }
+        
+        // Nom du pays
+        if (this.elements.reviewCountryName) {
+            this.elements.reviewCountryName.textContent = data.country.name;
+        }
+        
+        // Résultat
+        const result = data.result;
+        let emoji, title, titleClass;
+        
+        if (result.distance === null) {
+            emoji = '⏰';
+            title = 'Pas de réponse';
+            titleClass = 'poor';
+        } else if (result.points >= 900) {
+            emoji = '🎯';
+            title = 'Excellent !';
+            titleClass = 'excellent';
+        } else if (result.points >= 500) {
+            emoji = '👏';
+            title = 'Bien joué !';
+            titleClass = 'good';
+        } else if (result.points > 0) {
+            emoji = '🤔';
+            title = 'Pas mal...';
+            titleClass = 'average';
+        } else {
+            emoji = '😅';
+            title = 'Raté !';
+            titleClass = 'poor';
+        }
+        
+        if (this.elements.reviewResultEmoji) {
+            this.elements.reviewResultEmoji.textContent = emoji;
+        }
+        if (this.elements.reviewResultTitle) {
+            this.elements.reviewResultTitle.textContent = title;
+            this.elements.reviewResultTitle.className = 'review-result-title ' + titleClass;
+        }
+        if (this.elements.reviewDistance) {
+            if (result.distance !== null) {
+                this.elements.reviewDistance.textContent = `Distance: ${Math.round(result.distance).toLocaleString()} km`;
+            } else {
+                this.elements.reviewDistance.textContent = 'Aucun clic enregistré';
+            }
+        }
+        if (this.elements.reviewPoints) {
+            this.elements.reviewPoints.textContent = `+${result.points} points`;
+        }
+        
+        // Mettre à jour la carte de révision
+        this.updateReviewMap(data.country, result);
+        
+        // Mettre à jour le texte des boutons
+        if (this.elements.nextPlayerBtn) {
+            if (data.isLastPlayerForRound && data.isLastRound) {
+                this.elements.nextPlayerBtn.innerHTML = `
+                    <span>Voir le classement final</span>
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                    </svg>
+                `;
+            } else if (data.isLastPlayerForRound) {
+                this.elements.nextPlayerBtn.innerHTML = `
+                    <span>Question suivante</span>
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                    </svg>
+                `;
+            } else {
+                this.elements.nextPlayerBtn.innerHTML = `
+                    <span>Joueur suivant</span>
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                    </svg>
+                `;
+            }
+        }
+        
+        // Afficher/masquer le bouton "Passer à la question suivante"
+        if (this.elements.skipQuestionBtn) {
+            this.elements.skipQuestionBtn.style.display = data.isLastPlayerForRound ? 'none' : 'inline-flex';
+        }
+    }
+
+    initReviewMap() {
+        const container = document.getElementById('review-map');
+        if (!container || this.reviewMap) return;
+        
+        this.reviewMap = L.map('review-map', {
+            center: [20, 0],
+            zoom: 2,
+            minZoom: 2,
+            maxZoom: 10,
+            worldCopyJump: true,
+            maxBounds: [[-90, -180], [90, 180]],
+            maxBoundsViscosity: 1.0
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(this.reviewMap);
+    }
+
+    updateReviewMap(country, result) {
+        if (!this.reviewMap) {
+            this.initReviewMap();
+            setTimeout(() => this.updateReviewMap(country, result), 200);
+            return;
+        }
+        
+        // Nettoyer les anciens marqueurs
+        this.clearReviewMarkers();
+        
+        const targetLatLng = L.latLng(country.lat, country.lng);
+        
+        // Ajouter le marqueur de la cible (pays)
+        this.reviewMarkers.target = L.marker(targetLatLng, {
+            icon: L.divIcon({
+                className: 'target-marker',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            })
+        }).addTo(this.reviewMap);
+        
+        // Si le joueur a cliqué, ajouter son marqueur et la ligne
+        if (result.clickLat !== null && result.clickLng !== null) {
+            const clickLatLng = L.latLng(result.clickLat, result.clickLng);
+            
+            this.reviewMarkers.click = L.marker(clickLatLng, {
+                icon: L.divIcon({
+                    className: 'click-marker',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
+            }).addTo(this.reviewMap);
+            
+            this.reviewMarkers.line = L.polyline([clickLatLng, targetLatLng], {
+                color: '#f59e0b',
+                weight: 3,
+                dashArray: '10, 5',
+                opacity: 0.8
+            }).addTo(this.reviewMap);
+            
+            // Ajuster la vue pour montrer les deux points
+            const bounds = L.latLngBounds([clickLatLng, targetLatLng]);
+            this.reviewMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
+        } else {
+            // Centrer sur la cible seulement
+            this.reviewMap.setView(targetLatLng, 4);
+        }
+        
+        // Forcer la mise à jour de la taille de la carte
+        setTimeout(() => {
+            this.reviewMap.invalidateSize();
+        }, 100);
+    }
+
+    clearReviewMarkers() {
+        if (this.reviewMarkers.click) {
+            this.reviewMap.removeLayer(this.reviewMarkers.click);
+            this.reviewMarkers.click = null;
+        }
+        if (this.reviewMarkers.target) {
+            this.reviewMap.removeLayer(this.reviewMarkers.target);
+            this.reviewMarkers.target = null;
+        }
+        if (this.reviewMarkers.line) {
+            this.reviewMap.removeLayer(this.reviewMarkers.line);
+            this.reviewMarkers.line = null;
+        }
+    }
+
+    showNextPlayerResult() {
+        if (!this.state.isHost) return;
+        this.state.socket.emit('showNextPlayerResult', { roomCode: this.state.roomCode });
+    }
+
+    skipToNextQuestion() {
+        if (!this.state.isHost) return;
+        this.state.socket.emit('skipToNextQuestion', { roomCode: this.state.roomCode });
     }
 
     onGameEnded(data) {
         this.state.players = data.leaderboard;
         this.showMultiEndScreen(data.leaderboard);
-    }
-
-    updateLeaderboard(leaderboard, answeredCount, totalPlayers) {
-        this.state.players = leaderboard;
-
-        this.elements.leaderboardList.innerHTML = '';
-        leaderboard.forEach(player => {
-            const item = document.createElement('div');
-            const isCurrentPlayer = player.id === this.state.socket.id;
-            const hasAnswered = player.hasAnswered;
-
-            item.className = `leaderboard-item${isCurrentPlayer ? ' current-player' : ''}${hasAnswered ? ' answered' : ''}`;
-            item.innerHTML = `
-                <span class="leaderboard-rank${player.rank <= 3 ? ` rank-${player.rank}` : ''}">${player.rank}</span>
-                <span class="leaderboard-name">${player.username}${isCurrentPlayer ? ' (vous)' : ''}</span>
-                <span class="leaderboard-score">${player.score.toLocaleString()}</span>
-            `;
-            this.elements.leaderboardList.appendChild(item);
-        });
-
-        this.elements.answeredCount.textContent = answeredCount;
-        this.elements.totalPlayers.textContent = totalPlayers;
     }
 
     showMultiEndScreen(leaderboard) {
@@ -634,13 +870,59 @@ class GeoQuiz {
     }
 
     handleMapClick(e) {
-        // Ignorer si déjà répondu
-        if (this.state.mode === 'multi' && this.state.hasAnswered) {
+        const clickLatLng = e.latlng;
+        
+        // MODE MULTI: Enregistrer le clic sans montrer le résultat
+        if (this.state.mode === 'multi') {
+            // Vérifier qu'on a un pays en cours
+            if (!this.state.currentCountry) return;
+            
+            // Calculer la distance
+            const country = this.state.currentCountry;
+            const targetLatLng = L.latLng(country.lat, country.lng);
+            const distance = clickLatLng.distanceTo(targetLatLng) / 1000;
+            
+            // Enregistrer le clic (permet les modifications)
+            this.state.pendingClick = {
+                lat: clickLatLng.lat,
+                lng: clickLatLng.lng,
+                distance: distance
+            };
+            this.state.hasRegistered = true;
+            
+            // Supprimer l'ancien marqueur de clic en attente
+            if (this.markers.pending) {
+                this.map.removeLayer(this.markers.pending);
+                this.markers.pending = null;
+            }
+            
+            // Ajouter un nouveau marqueur (circleMarker pour positionnement précis)
+            this.markers.pending = L.circleMarker(clickLatLng, {
+                radius: 10,
+                fillColor: '#f59e0b',
+                fillOpacity: 1,
+                color: '#ffffff',
+                weight: 3,
+                className: 'pending-marker-circle'
+            }).addTo(this.map);
+            
+            // Envoyer au serveur pour enregistrer (pas de soumission finale)
+            this.state.socket.emit('registerAnswer', {
+                roomCode: this.state.roomCode,
+                clickLat: clickLatLng.lat,
+                clickLng: clickLatLng.lng,
+                distance: distance
+            });
+            
+            // Afficher l'overlay de confirmation
+            this.showMultiRegisteredOverlay();
+            
             return;
         }
 
-        // Ignorer si le résultat est affiché (solo)
-        if (this.state.mode === 'solo' && !this.elements.resultOverlay.classList.contains('hidden')) {
+        // MODE SOLO: Comportement original
+        // Ignorer si le résultat est affiché
+        if (!this.elements.resultOverlay.classList.contains('hidden')) {
             return;
         }
 
@@ -650,8 +932,18 @@ class GeoQuiz {
             this.state.timer = null;
         }
 
-        const clickLatLng = e.latlng;
         this.showResult(clickLatLng);
+    }
+
+    showMultiRegisteredOverlay() {
+        if (this.elements.multiRegisteredOverlay) {
+            this.elements.multiRegisteredOverlay.classList.remove('hidden');
+            
+            // Mettre à jour le statut
+            if (this.elements.registeredStatus) {
+                this.elements.registeredStatus.textContent = 'Réponse enregistrée ! Vous pouvez cliquer ailleurs pour modifier.';
+            }
+        }
     }
 
     // ==================== GAME LOGIC ====================
@@ -724,17 +1016,14 @@ class GeoQuiz {
     }
 
     handleTimeout() {
-        if (this.state.mode === 'multi' && !this.state.hasAnswered) {
-            this.state.hasAnswered = true;
-            this.state.socket.emit('submitAnswer', {
-                roomCode: this.state.roomCode,
-                distance: null,
-                points: 0
-            });
-            this.showMultiResult(null, 0);
-        } else if (this.state.mode === 'solo') {
-            this.showResult(null);
+        // En mode multi, le serveur gère le timeout
+        if (this.state.mode === 'multi') {
+            // Ne rien faire, le serveur enverra roundTimeUp
+            return;
         }
+        
+        // Mode solo
+        this.showResult(null);
     }
 
     showResult(clickLatLng) {
@@ -784,56 +1073,8 @@ class GeoQuiz {
 
         this.updateStats(points);
 
-        if (this.state.mode === 'multi') {
-            this.state.hasAnswered = true;
-            this.state.socket.emit('submitAnswer', {
-                roomCode: this.state.roomCode,
-                distance: distance,
-                points: points
-            });
-            this.showMultiResult(distance, points);
-        } else {
-            this.displayResultOverlay(distance, points, clickLatLng !== null);
-        }
-    }
-
-    showMultiResult(distance, points) {
-        let emoji, title, titleClass;
-
-        if (distance === null) {
-            emoji = '⏰';
-            title = 'Temps écoulé !';
-            titleClass = 'poor';
-        } else if (points >= 900) {
-            emoji = '🎯';
-            title = 'Excellent !';
-            titleClass = 'excellent';
-        } else if (points >= 500) {
-            emoji = '👏';
-            title = 'Bien joué !';
-            titleClass = 'good';
-        } else if (points > 0) {
-            emoji = '🤔';
-            title = 'Pas mal...';
-            titleClass = 'average';
-        } else {
-            emoji = '😅';
-            title = 'Raté !';
-            titleClass = 'poor';
-        }
-
-        this.elements.multiResultEmoji.textContent = emoji;
-        this.elements.multiResultTitle.textContent = title;
-        this.elements.multiResultTitle.className = titleClass;
-
-        if (distance !== null) {
-            this.elements.multiResultDistance.textContent = `Vous étiez à ${Math.round(distance).toLocaleString()} km`;
-        } else {
-            this.elements.multiResultDistance.textContent = `Le pays était: ${this.state.currentCountry.name}`;
-        }
-
-        this.elements.multiResultPoints.textContent = points;
-        this.elements.multiResultOverlay.classList.remove('hidden');
+        // Mode solo seulement
+        this.displayResultOverlay(distance, points, clickLatLng !== null);
     }
 
     calculatePoints(distance) {
@@ -937,6 +1178,10 @@ class GeoQuiz {
             this.map.removeLayer(this.markers.line);
             this.markers.line = null;
         }
+        if (this.markers.pending) {
+            this.map.removeLayer(this.markers.pending);
+            this.markers.pending = null;
+        }
     }
 
     endGame() {
@@ -979,7 +1224,9 @@ class GeoQuiz {
         }
         this.clearMarkers();
         this.elements.resultOverlay.classList.add('hidden');
-        this.elements.multiResultOverlay.classList.add('hidden');
+        if (this.elements.multiRegisteredOverlay) {
+            this.elements.multiRegisteredOverlay.classList.add('hidden');
+        }
 
         if (this.state.mode === 'multi') {
             this.state.socket.emit('leaveRoom');
@@ -998,7 +1245,9 @@ class GeoQuiz {
         }
         this.clearMarkers();
         this.elements.resultOverlay.classList.add('hidden');
-        this.elements.multiResultOverlay.classList.add('hidden');
+        if (this.elements.multiRegisteredOverlay) {
+            this.elements.multiRegisteredOverlay.classList.add('hidden');
+        }
 
         if (this.state.mode === 'multi') {
             this.state.socket.emit('leaveRoom');
@@ -1015,4 +1264,3 @@ class GeoQuiz {
 document.addEventListener('DOMContentLoaded', () => {
     window.geoQuiz = new GeoQuiz();
 });
-
