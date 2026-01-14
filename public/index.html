@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoQuiz - Jeu de Géographie Multijoueur</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Écran d'accueil - Choix du mode -->
+    <div id="mode-screen" class="screen active">
+        <div class="welcome-container">
+            <div class="logo">
+                <span class="logo-icon">🌍</span>
+                <h1>GeoQuiz</h1>
+            </div>
+            <p class="tagline">Testez vos connaissances géographiques !</p>
+            
+            <div class="mode-section">
+                <h2>Choisissez votre mode de jeu</h2>
+                <div class="mode-cards">
+                    <div class="mode-card" id="solo-mode-btn">
+                        <div class="card-icon">🎯</div>
+                        <h3>Solo</h3>
+                        <p>Jouez seul et battez votre record personnel</p>
+                    </div>
+                    <div class="mode-card" id="multi-mode-btn">
+                        <div class="card-icon">👥</div>
+                        <h3>Multijoueur</h3>
+                        <p>Affrontez vos amis en temps réel</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran Solo - Sélection difficulté -->
+    <div id="welcome-screen" class="screen">
+        <div class="welcome-container">
+            <div class="logo">
+                <span class="logo-icon">🌍</span>
+                <h1>GeoQuiz</h1>
+            </div>
+            <p class="tagline">Mode Solo</p>
+            
+            <div class="difficulty-section">
+                <h2>Choisissez votre niveau</h2>
+                <div class="difficulty-cards">
+                    <div class="difficulty-card" data-difficulty="easy">
+                        <div class="card-icon">🌱</div>
+                        <h3>Facile</h3>
+                        <p>Pays célèbres • Aide visuelle • Temps illimité</p>
+                    </div>
+                    <div class="difficulty-card" data-difficulty="medium">
+                        <div class="card-icon">🌿</div>
+                        <h3>Moyen</h3>
+                        <p>Tous les continents • Moins d'indices • 30 secondes</p>
+                    </div>
+                    <div class="difficulty-card" data-difficulty="hard">
+                        <div class="card-icon">🌲</div>
+                        <h3>Difficile</h3>
+                        <p>Pays obscurs • Aucun indice • 15 secondes</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="back-to-mode-btn" class="btn-secondary">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/>
+                    </svg>
+                    <span>Retour</span>
+                </button>
+                <button id="start-btn" class="btn-primary" disabled>
+                    <span>Commencer l'aventure</span>
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran Multijoueur - Lobby -->
+    <div id="lobby-screen" class="screen">
+        <div class="welcome-container">
+            <div class="logo">
+                <span class="logo-icon">👥</span>
+                <h1>Multijoueur</h1>
+            </div>
+            
+            <div class="lobby-section">
+                <div class="username-input-container">
+                    <label for="username-input">Votre pseudo</label>
+                    <input type="text" id="username-input" placeholder="Entrez votre pseudo" maxlength="15">
+                </div>
+                
+                <div class="lobby-options">
+                    <div class="lobby-card" id="create-room-section">
+                        <h3>Créer un salon</h3>
+                        <p>Créez un salon et invitez vos amis</p>
+                        <div class="difficulty-select">
+                            <label>Difficulté :</label>
+                            <select id="room-difficulty">
+                                <option value="easy">Facile</option>
+                                <option value="medium" selected>Moyen</option>
+                                <option value="hard">Difficile</option>
+                            </select>
+                        </div>
+                        <button id="create-room-btn" class="btn-primary">
+                            <span>Créer le salon</span>
+                        </button>
+                    </div>
+                    
+                    <div class="lobby-divider">
+                        <span>OU</span>
+                    </div>
+                    
+                    <div class="lobby-card" id="join-room-section">
+                        <h3>Rejoindre un salon</h3>
+                        <p>Entrez le code du salon</p>
+                        <input type="text" id="room-code-input" placeholder="CODE" maxlength="6" class="room-code-input">
+                        <button id="join-room-btn" class="btn-primary">
+                            <span>Rejoindre</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="lobby-error" class="error-message hidden"></div>
+            </div>
+
+            <button id="back-to-mode-btn-2" class="btn-secondary btn-back-lobby">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/>
+                </svg>
+                <span>Retour</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Écran Salle d'attente -->
+    <div id="waiting-room-screen" class="screen">
+        <div class="waiting-room-container">
+            <div class="room-header">
+                <h1>Salon de jeu</h1>
+                <div class="room-code-display">
+                    <span>Code :</span>
+                    <span id="display-room-code" class="room-code">XXXXXX</span>
+                    <button id="copy-code-btn" class="btn-icon" title="Copier le code">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="room-difficulty-badge" id="room-difficulty-display">Moyen</div>
+            </div>
+            
+            <div class="players-section">
+                <h2>Joueurs <span id="players-count">(1/8)</span></h2>
+                <div id="players-list" class="players-list">
+                    <!-- Joueurs ajoutés dynamiquement -->
+                </div>
+            </div>
+            
+            <div class="waiting-room-actions">
+                <button id="leave-room-btn" class="btn-secondary">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M19,3H5C3.89,3 3,3.89 3,5V9H5V5H19V19H5V15H3V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M10.08,15.58L11.5,17L16.5,12L11.5,7L10.08,8.41L12.67,11H3V13H12.67L10.08,15.58Z"/>
+                    </svg>
+                    <span>Quitter</span>
+                </button>
+                <button id="start-multi-game-btn" class="btn-primary" disabled>
+                    <span>Lancer la partie</span>
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <p id="waiting-message" class="waiting-message">En attente du lancement par l'hôte...</p>
+        </div>
+    </div>
+
+    <!-- Écran de jeu -->
+    <div id="game-screen" class="screen">
+        <header class="game-header">
+            <div class="header-left">
+                <button id="back-btn" class="btn-icon" title="Retour au menu">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/>
+                    </svg>
+                </button>
+                <div class="game-info">
+                    <span class="difficulty-badge" id="current-difficulty">Facile</span>
+                    <span class="round-info">Question <span id="current-round">1</span>/10</span>
+                </div>
+            </div>
+            <div class="header-center">
+                <div class="country-prompt">
+                    <span>Trouvez</span>
+                    <h2 id="country-name">France</h2>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="score-display">
+                    <span class="score-label">Score</span>
+                    <span class="score-value" id="score">0</span>
+                </div>
+                <div class="timer-display" id="timer-container">
+                    <svg class="timer-ring" viewBox="0 0 36 36">
+                        <path class="timer-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                        <path class="timer-ring-progress" id="timer-progress" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                    </svg>
+                    <span id="timer">30</span>
+                </div>
+            </div>
+        </header>
+
+        <div id="map-container">
+            <div id="map"></div>
+            <div id="hint-container" class="hint-box">
+                <span class="hint-icon">💡</span>
+                <span id="hint-text">Indice: Ce pays est en Europe</span>
+            </div>
+            
+            <!-- Leaderboard multijoueur -->
+            <div id="multiplayer-leaderboard" class="leaderboard-panel hidden">
+                <h3>🏆 Classement</h3>
+                <div id="leaderboard-list" class="leaderboard-list">
+                    <!-- Joueurs ajoutés dynamiquement -->
+                </div>
+                <div id="answer-status" class="answer-status">
+                    <span id="answered-count">0</span>/<span id="total-players">0</span> ont répondu
+                </div>
+            </div>
+        </div>
+
+        <!-- Résultat après chaque réponse -->
+        <div id="result-overlay" class="overlay hidden">
+            <div class="result-card">
+                <div class="result-emoji" id="result-emoji">🎯</div>
+                <h2 id="result-title">Excellent !</h2>
+                <p id="result-distance">Vous étiez à 150 km</p>
+                <div class="result-points">
+                    <span>+</span><span id="result-points">950</span><span> points</span>
+                </div>
+                <button id="next-btn" class="btn-primary">
+                    <span>Question suivante</span>
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Résultat multijoueur (attente des autres) -->
+        <div id="multi-result-overlay" class="overlay hidden">
+            <div class="result-card multi-result">
+                <div class="result-emoji" id="multi-result-emoji">🎯</div>
+                <h2 id="multi-result-title">Excellent !</h2>
+                <p id="multi-result-distance">Vous étiez à 150 km</p>
+                <div class="result-points">
+                    <span>+</span><span id="multi-result-points">950</span><span> points</span>
+                </div>
+                <div class="waiting-others">
+                    <div class="spinner"></div>
+                    <span>En attente des autres joueurs...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran de fin Solo -->
+    <div id="end-screen" class="screen">
+        <div class="end-container">
+            <div class="confetti" id="confetti"></div>
+            <div class="trophy" id="trophy">🏆</div>
+            <h1>Partie terminée !</h1>
+            <div class="final-score">
+                <span class="final-score-label">Score final</span>
+                <span class="final-score-value" id="final-score">0</span>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-value" id="stat-perfect">0</span>
+                    <span class="stat-label">Parfaits</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="stat-good">0</span>
+                    <span class="stat-label">Bons</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="stat-average">0</span>
+                    <span class="stat-label">Moyens</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="stat-missed">0</span>
+                    <span class="stat-label">Ratés</span>
+                </div>
+            </div>
+            <div class="end-buttons">
+                <button id="replay-btn" class="btn-primary">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/>
+                    </svg>
+                    <span>Rejouer</span>
+                </button>
+                <button id="menu-btn" class="btn-secondary">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+                    </svg>
+                    <span>Menu principal</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran de fin Multijoueur -->
+    <div id="multi-end-screen" class="screen">
+        <div class="end-container multi-end">
+            <div class="confetti" id="multi-confetti"></div>
+            
+            <div class="podium-section">
+                <h1 id="multi-end-title">🎉 Partie terminée !</h1>
+                
+                <div class="podium">
+                    <div class="podium-place second" id="podium-2">
+                        <div class="podium-avatar">🥈</div>
+                        <div class="podium-name">-</div>
+                        <div class="podium-score">0</div>
+                        <div class="podium-block">2</div>
+                    </div>
+                    <div class="podium-place first" id="podium-1">
+                        <div class="podium-avatar">🥇</div>
+                        <div class="podium-name">-</div>
+                        <div class="podium-score">0</div>
+                        <div class="podium-block">1</div>
+                    </div>
+                    <div class="podium-place third" id="podium-3">
+                        <div class="podium-avatar">🥉</div>
+                        <div class="podium-name">-</div>
+                        <div class="podium-score">0</div>
+                        <div class="podium-block">3</div>
+                    </div>
+                </div>
+                
+                <div class="full-leaderboard" id="full-leaderboard">
+                    <!-- Autres joueurs si > 3 -->
+                </div>
+            </div>
+            
+            <div class="end-buttons">
+                <button id="multi-menu-btn" class="btn-primary">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+                    </svg>
+                    <span>Menu principal</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="countries.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
+
