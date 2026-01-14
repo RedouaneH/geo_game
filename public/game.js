@@ -255,6 +255,10 @@ class GeoQuiz {
             leaveRoomBtn: document.getElementById('leave-room-btn'),
             startMultiGameBtn: document.getElementById('start-multi-game-btn'),
             waitingMessage: document.getElementById('waiting-message'),
+            // Room Settings
+            settingQuestions: document.getElementById('setting-questions'),
+            settingTime: document.getElementById('setting-time'),
+            settingDifficulty: document.getElementById('setting-difficulty'),
             // Game
             backBtn: document.getElementById('back-btn'),
             currentDifficulty: document.getElementById('current-difficulty'),
@@ -295,6 +299,7 @@ class GeoQuiz {
             fullLeaderboard: document.getElementById('full-leaderboard'),
             multiConfetti: document.getElementById('multi-confetti'),
             multiMenuBtn: document.getElementById('multi-menu-btn'),
+            multiReplayBtn: document.getElementById('multi-replay-btn'),
             // Review Screen
             reviewRoundInfo: document.getElementById('review-round-info'),
             reviewPlayerInfo: document.getElementById('review-player-info'),
@@ -443,6 +448,7 @@ class GeoQuiz {
         this.state.socket.on('joinError', (message) => this.showLobbyError(message));
         this.state.socket.on('playerJoined', (data) => this.onPlayerJoined(data));
         this.state.socket.on('playerLeft', (data) => this.onPlayerLeft(data));
+        this.state.socket.on('settingsUpdated', (data) => this.onSettingsUpdated(data));
 
         // Game Events
         this.state.socket.on('gameStarted', (data) => this.onGameStarted(data));
@@ -454,6 +460,7 @@ class GeoQuiz {
         this.state.socket.on('reviewPhaseStarted', (data) => this.onReviewPhaseStarted(data));
         this.state.socket.on('showPlayerResult', (data) => this.onShowPlayerResult(data));
         this.state.socket.on('gameEnded', (data) => this.onGameEnded(data));
+        this.state.socket.on('returnedToLobby', (data) => this.onReturnedToLobby(data));
     }
 
     // ==================== EVENT BINDING ====================
@@ -477,6 +484,9 @@ class GeoQuiz {
         this.elements.replayBtn.addEventListener('click', () => this.replay());
         this.elements.menuBtn.addEventListener('click', () => this.goToMenu());
         this.elements.multiMenuBtn.addEventListener('click', () => this.goToMenu());
+        if (this.elements.multiReplayBtn) {
+            this.elements.multiReplayBtn.addEventListener('click', () => this.returnToLobby());
+        }
 
         // Lobby
         this.elements.createRoomBtn.addEventListener('click', () => this.createRoom());
@@ -489,6 +499,11 @@ class GeoQuiz {
         this.elements.copyCodeBtn.addEventListener('click', () => this.copyRoomCode());
         this.elements.leaveRoomBtn.addEventListener('click', () => this.leaveRoom());
         this.elements.startMultiGameBtn.addEventListener('click', () => this.startMultiGame());
+        
+        // Settings listeners
+        this.elements.settingQuestions.addEventListener('change', () => this.updateRoomSettings());
+        this.elements.settingTime.addEventListener('change', () => this.updateRoomSettings());
+        this.elements.settingDifficulty.addEventListener('change', () => this.updateRoomSettings());
         
         // Review controls
         if (this.elements.nextPlayerBtn) {
@@ -544,6 +559,14 @@ class GeoQuiz {
         const diffConfig = this.config.difficulties[this.state.difficulty];
         this.elements.currentDifficulty.textContent = diffConfig.name;
         this.elements.score.textContent = '0';
+
+        // Mettre à jour le total des questions dans l'UI
+        const roundInfo = document.querySelector('.round-info');
+        if (roundInfo) {
+            roundInfo.innerHTML = `Question <span id="current-round">0</span>/${this.config.totalRounds}`;
+            // Re-référencer currentRound car on vient de changer l'innerHTML
+            this.elements.currentRound = document.getElementById('current-round');
+        }
 
         if (diffConfig.timer) {
             this.elements.timerContainer.classList.remove('hidden');
@@ -631,8 +654,14 @@ class GeoQuiz {
         this.state.isHost = true;
         this.state.players = data.players;
         this.state.difficulty = data.difficulty;
+        
+        if (data.settings) {
+            this.config.totalRounds = data.settings.totalRounds;
+            // Ne pas écraser les config globales, juste l'état si besoin
+        }
 
         this.updateWaitingRoom();
+        this.applySettingsToUI(data.difficulty, data.settings);
         this.showScreen('waitingRoom');
     }
 
@@ -643,6 +672,7 @@ class GeoQuiz {
         this.state.difficulty = data.difficulty;
 
         this.updateWaitingRoom();
+        this.applySettingsToUI(data.difficulty, data.settings);
         this.showScreen('waitingRoom');
     }
 
@@ -684,10 +714,59 @@ class GeoQuiz {
             this.elements.waitingMessage.textContent = this.state.players.length < 2 
                 ? 'En attente d\'autres joueurs...' 
                 : 'Prêt à lancer !';
+            
+            // Activer les contrôles de settings
+            this.elements.settingQuestions.disabled = false;
+            this.elements.settingTime.disabled = false;
+            this.elements.settingDifficulty.disabled = false;
         } else {
             this.elements.startMultiGameBtn.style.display = 'none';
             this.elements.waitingMessage.textContent = 'En attente du lancement par l\'hôte...';
+            
+            // Désactiver les contrôles de settings
+            this.elements.settingQuestions.disabled = true;
+            this.elements.settingTime.disabled = true;
+            this.elements.settingDifficulty.disabled = true;
         }
+    }
+
+    updateRoomSettings() {
+        if (!this.state.isHost) return;
+
+        const difficulty = this.elements.settingDifficulty.value;
+        const totalRounds = parseInt(this.elements.settingQuestions.value);
+        const timerValue = parseInt(this.elements.settingTime.value);
+        const timer = timerValue === 0 ? null : timerValue;
+
+        // Mettre à jour la config locale immédiatement pour éviter les race conditions
+        this.config.totalRounds = totalRounds;
+        this.state.difficulty = difficulty;
+
+        this.state.socket.emit('updateSettings', {
+            roomCode: this.state.roomCode,
+            settings: {
+                difficulty,
+                totalRounds,
+                timer
+            }
+        });
+    }
+
+    onSettingsUpdated(data) {
+        this.state.difficulty = data.difficulty;
+        this.applySettingsToUI(data.difficulty, data.settings);
+    }
+
+    applySettingsToUI(difficulty, settings) {
+        if (!settings) return;
+
+        this.elements.roomDifficultyDisplay.textContent = this.config.difficulties[difficulty].name;
+        this.elements.settingDifficulty.value = difficulty;
+        this.elements.settingQuestions.value = settings.totalRounds;
+        this.elements.settingTime.value = settings.timer === null ? 0 : settings.timer;
+        
+        // Mettre à jour la config locale pour le jeu
+        this.config.totalRounds = settings.totalRounds;
     }
 
     copyRoomCode() {
@@ -727,24 +806,45 @@ class GeoQuiz {
         this.state.score = 0;
         this.state.stats = { perfect: 0, good: 0, average: 0, missed: 0 };
 
+        // Mettre à jour la config du jeu avec les paramètres reçus
+        this.config.totalRounds = data.totalRounds;
+        this.state.difficulty = data.difficulty;
+
         const diffConfig = this.config.difficulties[this.state.difficulty];
         this.elements.currentDifficulty.textContent = diffConfig.name;
         this.elements.score.textContent = '-'; // On ne montre pas le score en multi
 
-        if (diffConfig.timer) {
+        const timerDuration = data.timer;
+        if (timerDuration) {
             this.elements.timerContainer.classList.remove('hidden');
+            this.elements.timer.textContent = timerDuration;
         } else {
             this.elements.timerContainer.classList.add('hidden');
+        }
+
+        // Réinitialiser l'UI pour éviter le "ghost country"
+        this.elements.countryName.textContent = 'Préparez-vous...';
+        this.elements.currentRound.textContent = '0';
+        // Mettre à jour le total des questions dans l'UI
+        const roundInfo = document.querySelector('.round-info');
+        if (roundInfo) {
+            roundInfo.innerHTML = `Question <span id="current-round">0</span>/${data.totalRounds}`;
+            // Re-référencer currentRound car on vient de changer l'innerHTML
+            this.elements.currentRound = document.getElementById('current-round');
         }
 
         this.showScreen('game');
 
         setTimeout(() => {
-            this.map.invalidateSize();
+            if (this.map) this.map.invalidateSize();
         }, 100);
     }
 
     onNewRound(data) {
+        if (!data || !data.country) {
+            console.error('Données de round invalides reçues:', data);
+            return;
+        }
         this.state.currentRound = data.round;
         this.state.currentCountry = data.country;
         this.state.pendingClick = null;
@@ -762,6 +862,13 @@ class GeoQuiz {
         // Mettre à jour l'UI
         this.elements.currentRound.textContent = data.round;
         this.elements.countryName.textContent = data.country.name;
+        
+        // S'assurer que le total est correct (au cas où on rejoindrait en cours de route)
+        const roundInfo = document.querySelector('.round-info');
+        if (roundInfo && !roundInfo.textContent.includes(`/${data.totalRounds}`)) {
+            roundInfo.innerHTML = `Question <span id="current-round">${data.round}</span>/${data.totalRounds}`;
+            this.elements.currentRound = document.getElementById('current-round');
+        }
 
         // Réinitialiser le compteur de réponses
         if (this.elements.registeredCount) {
@@ -832,6 +939,18 @@ class GeoQuiz {
     // === PHASE DE RÉVISION ===
 
     onReviewPhaseStarted(data) {
+        // Arrêter le timer s'il est actif
+        if (this.state.timer) {
+            clearInterval(this.state.timer);
+            this.state.timer = null;
+        }
+        
+        // Masquer les overlays de jeu
+        this.elements.resultOverlay.classList.add('hidden');
+        if (this.elements.multiRegisteredOverlay) {
+            this.elements.multiRegisteredOverlay.classList.add('hidden');
+        }
+        
         // Stocker si on est l'hôte
         this.state.isHost = data.hostId === this.state.socket.id;
         
@@ -1006,10 +1125,10 @@ class GeoQuiz {
             
             // Ajuster la vue pour montrer les deux points
             const bounds = L.latLngBounds([clickLatLng, targetLatLng]);
-            this.reviewMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
+            this.reviewMap.fitBounds(bounds, { padding: [80, 80], maxZoom: 4 });
         } else {
             // Centrer sur la cible seulement
-            this.reviewMap.setView(targetLatLng, 4);
+            this.reviewMap.setView(targetLatLng, 3);
         }
         
         // Forcer la mise à jour de la taille de la carte
@@ -1046,6 +1165,32 @@ class GeoQuiz {
     onGameEnded(data) {
         this.state.players = data.leaderboard;
         this.showMultiEndScreen(data.leaderboard);
+    }
+
+    returnToLobby() {
+        if (!this.state.isHost) {
+            alert("Seul l'hôte peut relancer une partie.");
+            return;
+        }
+        this.state.socket.emit('returnToLobby', { roomCode: this.state.roomCode });
+    }
+
+    onReturnedToLobby(data) {
+        this.state.players = data.players;
+        this.state.difficulty = data.difficulty;
+        
+        // Réinitialiser l'état local pour une nouvelle partie
+        this.state.currentRound = 0;
+        this.state.score = 0;
+        this.state.pendingClick = null;
+        this.state.hasRegistered = false;
+
+        this.updateWaitingRoom();
+        this.applySettingsToUI(data.difficulty, data.settings);
+        this.showScreen('waitingRoom');
+        
+        // Message de confirmation
+        console.log("Tout le monde est revenu dans la salle d'attente.");
     }
 
     showMultiEndScreen(leaderboard) {
@@ -1095,6 +1240,15 @@ class GeoQuiz {
 
         this.showScreen('multiEnd');
         this.launchConfetti(this.elements.multiConfetti);
+
+        // Afficher/masquer le bouton de retour au lobby selon si on est l'hôte
+        if (this.elements.multiReplayBtn) {
+            if (this.state.isHost) {
+                this.elements.multiReplayBtn.style.display = 'inline-flex';
+            } else {
+                this.elements.multiReplayBtn.style.display = 'none';
+            }
+        }
     }
 
     showLobbyError(message) {
@@ -1354,9 +1508,9 @@ class GeoQuiz {
 
         if (clickLatLng) {
             const bounds = L.latLngBounds([clickLatLng, targetLatLng]);
-            this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
+            this.map.fitBounds(bounds, { padding: [80, 80], maxZoom: 4 });
         } else {
-            this.map.setView(targetLatLng, 4);
+            this.map.setView(targetLatLng, 3);
         }
 
         this.state.score += points;

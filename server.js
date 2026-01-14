@@ -84,6 +84,10 @@ io.on('connection', (socket) => {
             code: roomCode,
             hostId: socket.id,
             difficulty: difficulty,
+            settings: {
+                totalRounds: GAME_CONFIG.totalRounds,
+                timer: GAME_CONFIG.difficulties[difficulty].timer
+            },
             players: [{
                 id: socket.id,
                 username: username,
@@ -94,15 +98,17 @@ io.on('connection', (socket) => {
             currentRound: 0,
             countries: [],
             roundTimer: null,
+            nextRoundTimeout: null,
             roundStartTime: null,
             // Stockage des réponses pour chaque round
             roundAnswers: [], // [{round: 1, country: {...}, answers: [{playerId, username, clickLat, clickLng, distance, points}]}]
             // État de la phase de révision
             reviewState: {
-                currentRound: 0,
-                currentPlayerIndex: 0
-            }
-        };
+            currentRound: 0,
+            currentPlayerIndex: 0
+        },
+        lobbyResetTimeout: null
+    };
         
         rooms.set(roomCode, roomData);
         socket.join(roomCode);
@@ -113,6 +119,7 @@ io.on('connection', (socket) => {
             roomCode: roomCode,
             players: roomData.players,
             difficulty: difficulty,
+            settings: roomData.settings,
             isHost: true
         });
         
@@ -161,6 +168,7 @@ io.on('connection', (socket) => {
             roomCode: room.code,
             players: room.players,
             difficulty: room.difficulty,
+            settings: room.settings,
             isHost: false
         });
         
@@ -181,8 +189,21 @@ io.on('connection', (socket) => {
         if (socket.id !== room.hostId) return;
         if (room.status !== 'waiting') return;
         
-        // Mélanger et stocker les pays
-        room.countries = shuffleArray(countries).slice(0, GAME_CONFIG.totalRounds);
+        // Toujours utiliser room.settings.totalRounds comme référence (défini par l'hôte)
+        // On mélange les pays et on coupe au nombre de rounds configuré
+        let countriesToUse = shuffleArray(countries);
+        
+        // Si pas assez de pays fournis, on limite le nombre de rounds
+        if (countriesToUse.length < room.settings.totalRounds) {
+            room.settings.totalRounds = countriesToUse.length;
+        } else {
+            // Sinon on prend exactement le nombre de rounds configuré
+            countriesToUse = countriesToUse.slice(0, room.settings.totalRounds);
+        }
+
+        room.countries = countriesToUse;
+        
+        console.log(`Partie configurée: ${room.settings.totalRounds} questions, ${room.countries.length} pays`);
         room.status = 'playing';
         room.currentRound = 0;
         room.roundAnswers = [];
@@ -193,8 +214,9 @@ io.on('connection', (socket) => {
         });
         
         io.to(roomCode).emit('gameStarted', {
-            totalRounds: GAME_CONFIG.totalRounds,
-            difficulty: room.difficulty
+            totalRounds: room.settings.totalRounds,
+            difficulty: room.difficulty,
+            timer: room.settings.timer
         });
         
         // Démarrer le premier round après un court délai
@@ -205,6 +227,26 @@ io.on('connection', (socket) => {
         console.log(`Partie lancée dans le salon ${roomCode}`);
     });
 
+    // Mettre à jour les paramètres du salon (hôte uniquement)
+    socket.on('updateSettings', ({ roomCode, settings }) => {
+        const room = rooms.get(roomCode);
+        if (!room) return;
+        if (socket.id !== room.hostId) return;
+        
+        // Mettre à jour les paramètres
+        if (settings.difficulty) room.difficulty = settings.difficulty;
+        if (settings.totalRounds) room.settings.totalRounds = parseInt(settings.totalRounds);
+        if (settings.timer !== undefined) room.settings.timer = settings.timer === null ? null : parseInt(settings.timer);
+        
+        // Informer tous les joueurs
+        io.to(roomCode).emit('settingsUpdated', {
+            difficulty: room.difficulty,
+            settings: room.settings
+        });
+        
+        console.log(`Paramètres mis à jour pour le salon ${roomCode}:`, room.settings);
+    });
+
     // Un joueur enregistre/modifie sa réponse (pas de soumission finale)
     socket.on('registerAnswer', ({ roomCode, clickLat, clickLng, distance }) => {
         const room = rooms.get(roomCode);
@@ -213,15 +255,11 @@ io.on('connection', (socket) => {
         const player = room.players.find(p => p.id === socket.id);
         if (!player) return;
         
-        // Trouver ou créer l'entrée pour ce round
+        // Trouver l'entrée pour ce round (doit avoir été créée par startNextRound)
         let roundData = room.roundAnswers.find(r => r.round === room.currentRound);
         if (!roundData) {
-            roundData = {
-                round: room.currentRound,
-                country: room.countries[room.currentRound - 1],
-                answers: []
-            };
-            room.roundAnswers.push(roundData);
+            console.error(`[registerAnswer] Round data non trouvée pour le round ${room.currentRound} dans le salon ${roomCode}`);
+            return;
         }
         
         // Trouver ou créer la réponse du joueur
@@ -241,12 +279,19 @@ io.on('connection', (socket) => {
         playerAnswer.points = calculatePoints(distance);
         
         // Informer tous les joueurs qu'un joueur a enregistré une réponse
+        const registeredCount = roundData.answers.filter(a => a.clickLat !== null && a.clickLat !== undefined).length;
         io.to(roomCode).emit('playerRegistered', {
             playerId: socket.id,
             username: player.username,
-            registeredCount: roundData.answers.filter(a => a.clickLat !== null && a.clickLat !== undefined).length,
+            registeredCount: registeredCount,
             totalPlayers: room.players.length
         });
+
+        // Si tout le monde a répondu, on peut terminer le round plus tôt
+        if (registeredCount === room.players.length) {
+            console.log(`Tous les joueurs (${registeredCount}/${room.players.length}) ont répondu dans le salon ${roomCode}. Fin du round.`);
+            endCurrentRound(roomCode);
+        }
     });
 
     // Déconnexion
@@ -338,7 +383,7 @@ io.on('connection', (socket) => {
             state.currentPlayerIndex = 0;
             
             // Vérifier si toutes les questions ont été revues
-            if (state.currentRound > room.roundAnswers.length) {
+            if (state.currentRound > room.settings.totalRounds) {
                 // Fin de la révision, afficher le classement final
                 finishReview(roomCode);
                 return;
@@ -360,12 +405,59 @@ io.on('connection', (socket) => {
         state.currentPlayerIndex = 0;
         
         // Vérifier si toutes les questions ont été revues
-        if (state.currentRound > room.roundAnswers.length) {
+        if (state.currentRound > room.settings.totalRounds) {
             finishReview(roomCode);
             return;
         }
         
         sendCurrentReviewState(roomCode);
+    });
+
+    // L'hôte demande à revenir dans la salle d'attente
+    socket.on('returnToLobby', ({ roomCode }) => {
+        const room = rooms.get(roomCode);
+        if (!room || room.status !== 'finished') return;
+        if (socket.id !== room.hostId) return;
+
+        // Annuler le timeout de suppression s'il existe
+        if (room.lobbyResetTimeout) {
+            clearTimeout(room.lobbyResetTimeout);
+            room.lobbyResetTimeout = null;
+        }
+
+        // Sécurité : annuler les timers de round si jamais ils tournent encore
+        if (room.roundTimer) {
+            clearTimeout(room.roundTimer);
+            room.roundTimer = null;
+        }
+        if (room.nextRoundTimeout) {
+            clearTimeout(room.nextRoundTimeout);
+            room.nextRoundTimeout = null;
+        }
+
+        // Réinitialiser l'état du salon
+        room.status = 'waiting';
+        room.currentRound = 0;
+        room.countries = [];
+        room.roundAnswers = [];
+        room.reviewState = {
+            currentRound: 0,
+            currentPlayerIndex: 0
+        };
+
+        // Réinitialiser les scores des joueurs
+        room.players.forEach(p => {
+            p.score = 0;
+        });
+
+        // Informer tous les joueurs
+        io.to(roomCode).emit('returnedToLobby', {
+            players: room.players,
+            difficulty: room.difficulty,
+            settings: room.settings
+        });
+
+        console.log(`Salon ${roomCode} remis en attente par l'hôte`);
     });
 });
 
@@ -376,14 +468,14 @@ function startNextRound(roomCode) {
     
     room.currentRound++;
     
-    if (room.currentRound > GAME_CONFIG.totalRounds) {
+    if (room.currentRound > room.settings.totalRounds) {
         // Toutes les questions terminées, passer à la phase de révision
         startReviewPhase(roomCode);
         return;
     }
     
     const currentCountry = room.countries[room.currentRound - 1];
-    const timerDuration = GAME_CONFIG.difficulties[room.difficulty].timer;
+    const timerDuration = room.settings.timer;
     
     room.roundStartTime = Date.now();
     
@@ -397,7 +489,7 @@ function startNextRound(roomCode) {
     // Envoyer le nouveau round à tous les joueurs
     io.to(roomCode).emit('newRound', {
         round: room.currentRound,
-        totalRounds: GAME_CONFIG.totalRounds,
+        totalRounds: room.settings.totalRounds,
         country: currentCountry,
         timerDuration: timerDuration
     });
@@ -413,7 +505,10 @@ function startNextRound(roomCode) {
 // Terminer le round actuel (appelé quand le temps est écoulé)
 function endCurrentRound(roomCode) {
     const room = rooms.get(roomCode);
-    if (!room) return;
+    if (!room || room.status !== 'playing') return;
+    
+    // Si un passage au round suivant est déjà programmé, on ne fait rien
+    if (room.nextRoundTimeout) return;
     
     // Annuler le timer si actif
     if (room.roundTimer) {
@@ -442,11 +537,13 @@ function endCurrentRound(roomCode) {
     // Notifier que le round est terminé (sans montrer les résultats)
     io.to(roomCode).emit('roundTimeUp', {
         round: room.currentRound,
-        totalRounds: GAME_CONFIG.totalRounds
+        totalRounds: room.settings.totalRounds
     });
     
     // Démarrer le prochain round après un court délai
-    setTimeout(() => {
+    room.nextRoundTimeout = setTimeout(() => {
+        room.nextRoundTimeout = null;
+        console.log(`Transition vers le prochain round (actuel: ${room.currentRound}) dans le salon ${roomCode}`);
         startNextRound(roomCode);
     }, 2000);
 }
@@ -455,6 +552,16 @@ function endCurrentRound(roomCode) {
 function startReviewPhase(roomCode) {
     const room = rooms.get(roomCode);
     if (!room) return;
+    
+    // Nettoyer les timers avant de changer le statut
+    if (room.roundTimer) {
+        clearTimeout(room.roundTimer);
+        room.roundTimer = null;
+    }
+    if (room.nextRoundTimeout) {
+        clearTimeout(room.nextRoundTimeout);
+        room.nextRoundTimeout = null;
+    }
     
     room.status = 'reviewing';
     
@@ -477,7 +584,7 @@ function startReviewPhase(roomCode) {
     
     // Notifier tous les joueurs que la phase de révision commence
     io.to(roomCode).emit('reviewPhaseStarted', {
-        totalRounds: room.roundAnswers.length,
+        totalRounds: room.settings.totalRounds,
         totalPlayers: room.players.length,
         hostId: room.hostId
     });
@@ -506,7 +613,7 @@ function sendCurrentReviewState(roomCode) {
     
     io.to(roomCode).emit('showPlayerResult', {
         round: state.currentRound,
-        totalRounds: room.roundAnswers.length,
+        totalRounds: room.settings.totalRounds,
         playerIndex: state.currentPlayerIndex,
         totalPlayers: room.players.length,
         country: roundData.country,
@@ -526,7 +633,7 @@ function sendCurrentReviewState(roomCode) {
             points: 0
         },
         isLastPlayerForRound: state.currentPlayerIndex >= room.players.length - 1,
-        isLastRound: state.currentRound >= room.roundAnswers.length
+        isLastRound: state.currentRound >= room.settings.totalRounds
     });
 }
 
@@ -546,8 +653,8 @@ function finishReview(roomCode) {
     
     console.log(`Partie terminée dans le salon ${roomCode}`);
     
-    // Supprimer le salon après 5 minutes
-    setTimeout(() => {
+    // Supprimer le salon après 5 minutes (sauf si relancé)
+    room.lobbyResetTimeout = setTimeout(() => {
         if (rooms.has(roomCode)) {
             rooms.delete(roomCode);
             console.log(`Salon ${roomCode} supprimé (expiration)`);
