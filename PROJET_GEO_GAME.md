@@ -20,9 +20,11 @@ GeoQuiz est une application web interactive permettant de tester ses connaissanc
 ### Mode Multijoueur 🆕
 - **Système de Salons** : Créez un salon et partagez le code à 6 caractères avec vos amis.
 - **Jusqu'à 8 joueurs** par salon.
+- **Paramètres de l'Hôte** : Le créateur du salon peut modifier la difficulté, le nombre de questions (2 à 20) et le temps de réponse (10s à 60s) directement dans le lobby.
 - **Synchronisation en Temps Réel** : Tous les joueurs voient le même pays à trouver simultanément.
-- **Classement Dynamique** : Le leaderboard se met à jour après chaque réponse.
-- **Podium Final** : Affichage du classement complet avec les 3 premiers sur un podium.
+- **Phase de Révision interactive** : Après chaque série de questions, l'hôte guide le groupe à travers les résultats de chaque joueur, un par un, sur la carte.
+- **Podium Final** : Affichage du classement complet avec les 3 premiers sur un podium animé.
+- **Gestion Automatique** : Les salons inactifs ou terminés sont automatiquement supprimés après 5 minutes.
 
 ---
 
@@ -49,44 +51,45 @@ Ouvrez votre navigateur et allez sur : **http://localhost:3000**
 
 1. **Créer un salon** :
    - Entrez votre pseudo.
-   - Choisissez la difficulté.
+   - Choisissez une difficulté initiale (modifiable plus tard).
    - Cliquez sur "Créer le salon".
    - Partagez le **code à 6 caractères** avec vos amis.
 
-2. **Rejoindre un salon** :
+2. **Gérer les paramètres (Hôte)** :
+   - Ajustez le nombre de questions et le temps limite.
+   - Changez la difficulté si nécessaire.
+   - Les modifications sont synchronisées instantanément pour tous les joueurs.
+
+3. **Rejoindre un salon** :
    - Entrez votre pseudo.
    - Entrez le code du salon.
    - Cliquez sur "Rejoindre".
 
-3. **Lancer la partie** :
-   - L'hôte (créateur du salon) clique sur "Lancer la partie".
-   - Tous les joueurs répondent aux mêmes questions en même temps.
-   - Le classement est affiché en temps réel.
+4. **Lancer la partie** :
+   - L'hôte clique sur "Lancer la partie".
+   - Tout le monde répond aux mêmes questions. Le système enregistre votre meilleur clic jusqu'à la fin du chrono.
 
-4. **Fin de partie** :
-   - Après 10 questions, le podium final s'affiche.
-   - Le gagnant est celui avec le plus de points !
+5. **Phase de Révision** :
+   - Après les questions, l'hôte contrôle le passage aux résultats.
+   - On visualise les clics de chaque joueur pour chaque question.
+
+6. **Fin de partie** :
+   - Le podium final s'affiche.
+   - L'hôte peut décider de ramener tout le groupe dans le lobby pour une nouvelle partie.
 
 ---
 
 ## 🌐 Déploiement en Production
 
-Pour jouer avec vos amis à distance, déployez l'application sur un service cloud :
+L'application est optimisée pour un déploiement rapide.
 
-### Option 1 : Render.com (Recommandé)
-1. Créez un compte sur [render.com](https://render.com).
-2. Connectez votre dépôt GitHub.
-3. Créez un nouveau "Web Service".
-4. Sélectionnez votre dépôt et configurez :
+### 🚀 Déploiement sur Render.com (Actuel)
+1. Liez votre dépôt GitHub à [Render.com](https://render.com).
+2. Créez un **Web Service**.
+3. Configuration automatique via `package.json` :
    - **Build Command** : `npm install`
    - **Start Command** : `npm start`
-5. Déployez et partagez l'URL avec vos amis !
-
-### Option 2 : Railway.app
-1. Créez un compte sur [railway.app](https://railway.app).
-2. Importez votre projet depuis GitHub.
-3. Railway détecte automatiquement Node.js.
-4. Déployez en un clic.
+4. **Variable d'environnement** : Render définit automatiquement le `PORT`, le serveur l'utilisera par défaut.
 
 ---
 
@@ -94,13 +97,14 @@ Pour jouer avec vos amis à distance, déployez l'application sur un service clo
 
 ```
 geo_game/
-├── public/               # Fichiers statiques servis au client
-│   ├── index.html        # Page principale avec tous les écrans
-│   ├── styles.css        # Styles CSS (mode sombre, animations)
-│   ├── game.js           # Logique du jeu (solo + multijoueur)
-│   └── countries.js      # Base de données des pays
-├── server.js             # Serveur Node.js + Socket.io
-├── package.json          # Dépendances et scripts
+├── public/               # Fichiers statiques
+│   ├── index.html        # Structure UI (Solo, Multi, Révision, Podium)
+│   ├── styles.css        # Design moderne, animations, mode sombre
+│   ├── game.js           # Logique client (Socket.io, Leaflet, UI)
+│   ├── countries.js      # Données des pays et indices
+│   └── countries-geo.json # Frontières pour l'affichage visuel
+├── server.js             # Serveur Node.js + Socket.io (Logique des salons)
+├── package.json          # Dépendances (Express, Socket.io)
 └── PROJET_GEO_GAME.md    # Cette documentation
 ```
 
