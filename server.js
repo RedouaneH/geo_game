@@ -13,6 +13,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Configuration du jeu
 const GAME_CONFIG = {
     totalRounds: 10,
+    gameModes: {
+        location: 'location',  // Mode localisation (carte)
+        flags: 'flags'         // Mode drapeaux (choix multiples)
+    },
     difficulties: {
         easy: { timer: null, countries: 'famous' },
         medium: { timer: 30, countries: 'all' },
@@ -60,30 +64,66 @@ function getSortedLeaderboard(players) {
 // Calculer les points basés sur la distance
 function calculatePoints(distance) {
     if (distance === null) return 0;
-    if (distance <= 300) return 1000;
-    if (distance <= 500) return 900;
-    if (distance <= 750) return 800;
-    if (distance <= 1000) return 700;
-    if (distance <= 1500) return 550;
-    if (distance <= 2000) return 400;
-    if (distance <= 2500) return 300;
-    if (distance <= 3000) return 200;
-    if (distance <= 4000) return 100;
-    if (distance <= 5000) return 50;
+    
+    // Distance = 0 signifie que le clic est à l'intérieur du pays (score parfait)
+    if (distance === 0) return 1000;
+    
+    // Nouvelle échelle progressive sans plateau
+    if (distance <= 50) return 950;
+    if (distance <= 100) return 900;
+    if (distance <= 200) return 850;
+    if (distance <= 300) return 800;
+    if (distance <= 500) return 700;
+    if (distance <= 750) return 600;
+    if (distance <= 1000) return 500;
+    if (distance <= 1500) return 400;
+    if (distance <= 2000) return 300;
+    if (distance <= 2500) return 200;
+    if (distance <= 3000) return 100;
+    if (distance <= 4000) return 50;
+    if (distance <= 5000) return 25;
     return 0;
+}
+
+// Calculer les points pour le mode drapeaux
+function calculateFlagPoints(isCorrect, timeLeft, totalTime) {
+    if (!isCorrect) return 0;
+    
+    // Score de base pour une bonne réponse
+    const basePoints = 800;
+    
+    // Bonus pour la rapidité (max 200 points)
+    const speedBonus = totalTime ? Math.floor((timeLeft / totalTime) * 200) : 200;
+    
+    return basePoints + speedBonus;
+}
+
+// Sélectionner des pays distracteurs pour le mode drapeaux
+function selectDistractors(correctCountry, allCountries, count = 3) {
+    const distractors = [];
+    const availableCountries = allCountries.filter(c => c.name !== correctCountry.name);
+    
+    // Mélanger et prendre les premiers
+    const shuffled = shuffleArray(availableCountries);
+    for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+        distractors.push(shuffled[i]);
+    }
+    
+    return distractors;
 }
 
 io.on('connection', (socket) => {
     console.log(`Joueur connecté: ${socket.id}`);
 
     // Créer un salon
-    socket.on('createRoom', ({ username, difficulty }) => {
+    socket.on('createRoom', ({ username, difficulty, gameMode }) => {
         const roomCode = generateRoomCode();
         
         const roomData = {
             code: roomCode,
             hostId: socket.id,
             difficulty: difficulty,
+            gameMode: gameMode || 'location', // Mode par défaut: localisation
             settings: {
                 totalRounds: GAME_CONFIG.totalRounds,
                 timer: GAME_CONFIG.difficulties[difficulty].timer
@@ -119,6 +159,7 @@ io.on('connection', (socket) => {
             roomCode: roomCode,
             players: roomData.players,
             difficulty: difficulty,
+            gameMode: roomData.gameMode,
             settings: roomData.settings,
             isHost: true
         });
@@ -168,6 +209,7 @@ io.on('connection', (socket) => {
             roomCode: room.code,
             players: room.players,
             difficulty: room.difficulty,
+            gameMode: room.gameMode,
             settings: room.settings,
             isHost: false
         });
@@ -216,6 +258,7 @@ io.on('connection', (socket) => {
         io.to(roomCode).emit('gameStarted', {
             totalRounds: room.settings.totalRounds,
             difficulty: room.difficulty,
+            gameMode: room.gameMode,
             timer: room.settings.timer
         });
         
@@ -235,20 +278,22 @@ io.on('connection', (socket) => {
         
         // Mettre à jour les paramètres
         if (settings.difficulty) room.difficulty = settings.difficulty;
+        if (settings.gameMode) room.gameMode = settings.gameMode;
         if (settings.totalRounds) room.settings.totalRounds = parseInt(settings.totalRounds);
         if (settings.timer !== undefined) room.settings.timer = settings.timer === null ? null : parseInt(settings.timer);
         
         // Informer tous les joueurs
         io.to(roomCode).emit('settingsUpdated', {
             difficulty: room.difficulty,
+            gameMode: room.gameMode,
             settings: room.settings
         });
         
-        console.log(`Paramètres mis à jour pour le salon ${roomCode}:`, room.settings);
+        console.log(`Paramètres mis à jour pour le salon ${roomCode}:`, room.settings, 'Mode:', room.gameMode);
     });
 
     // Un joueur enregistre/modifie sa réponse (pas de soumission finale)
-    socket.on('registerAnswer', ({ roomCode, clickLat, clickLng, distance }) => {
+    socket.on('registerAnswer', ({ roomCode, clickLat, clickLng, distance, selectedOption, isCorrect }) => {
         const room = rooms.get(roomCode);
         if (!room || room.status !== 'playing') return;
         
@@ -272,14 +317,32 @@ io.on('connection', (socket) => {
             roundData.answers.push(playerAnswer);
         }
         
-        // Mettre à jour la réponse (permet les modifications)
-        playerAnswer.clickLat = clickLat;
-        playerAnswer.clickLng = clickLng;
-        playerAnswer.distance = distance;
-        playerAnswer.points = calculatePoints(distance);
+        // Mettre à jour la réponse selon le mode de jeu
+        if (room.gameMode === 'flags') {
+            // Mode drapeaux
+            const timeElapsed = room.roundStartTime ? (Date.now() - room.roundStartTime) / 1000 : 0;
+            const timeLeft = room.settings.timer ? Math.max(0, room.settings.timer - timeElapsed) : room.settings.timer;
+            
+            playerAnswer.selectedOption = selectedOption;
+            playerAnswer.isCorrect = isCorrect;
+            playerAnswer.points = calculateFlagPoints(isCorrect, timeLeft, room.settings.timer);
+        } else {
+            // Mode localisation
+            playerAnswer.clickLat = clickLat;
+            playerAnswer.clickLng = clickLng;
+            playerAnswer.distance = distance;
+            playerAnswer.points = calculatePoints(distance);
+        }
         
         // Informer tous les joueurs qu'un joueur a enregistré une réponse
-        const registeredCount = roundData.answers.filter(a => a.clickLat !== null && a.clickLat !== undefined).length;
+        const registeredCount = roundData.answers.filter(a => {
+            if (room.gameMode === 'flags') {
+                return a.selectedOption !== undefined;
+            } else {
+                return a.clickLat !== null && a.clickLat !== undefined;
+            }
+        }).length;
+        
         io.to(roomCode).emit('playerRegistered', {
             playerId: socket.id,
             username: player.username,
@@ -287,10 +350,33 @@ io.on('connection', (socket) => {
             totalPlayers: room.players.length
         });
 
-        // Si tout le monde a répondu, on peut terminer le round plus tôt
+        // Si tout le monde a répondu, réduire le timer à 3 secondes
         if (registeredCount === room.players.length) {
-            console.log(`Tous les joueurs (${registeredCount}/${room.players.length}) ont répondu dans le salon ${roomCode}. Fin du round.`);
-            endCurrentRound(roomCode);
+            console.log(`Tous les joueurs (${registeredCount}/${room.players.length}) ont répondu dans le salon ${roomCode}. Réduction du timer.`);
+            
+            // Calculer le temps restant
+            const timeElapsed = room.roundStartTime ? (Date.now() - room.roundStartTime) / 1000 : 0;
+            const timeLeft = room.settings.timer ? Math.max(0, room.settings.timer - timeElapsed) : null;
+            
+            // Si le timer est au-dessus de 3 secondes, le réduire à 3 secondes
+            if (timeLeft === null || timeLeft > 3) {
+                // Annuler l'ancien timer
+                if (room.roundTimer) {
+                    clearTimeout(room.roundTimer);
+                    room.roundTimer = null;
+                }
+                
+                // Notifier les clients de réduire leur timer à 3 secondes
+                io.to(roomCode).emit('allPlayersAnswered', {
+                    newTimeLeft: 3
+                });
+                
+                // Programmer la fin du round dans 3 secondes
+                room.roundTimer = setTimeout(() => {
+                    endCurrentRound(roomCode);
+                }, 3000 + 500); // +500ms de marge
+            }
+            // Si le timer est déjà en dessous de 3 secondes, on laisse le timer actuel finir
         }
     });
 
@@ -454,6 +540,7 @@ io.on('connection', (socket) => {
         io.to(roomCode).emit('returnedToLobby', {
             players: room.players,
             difficulty: room.difficulty,
+            gameMode: room.gameMode,
             settings: room.settings
         });
 
@@ -486,12 +573,22 @@ function startNextRound(roomCode) {
         answers: []
     });
     
+    // Pour le mode drapeaux, générer des options
+    let options = null;
+    if (room.gameMode === 'flags') {
+        const distractors = selectDistractors(currentCountry, room.countries, 3);
+        const allOptions = [currentCountry, ...distractors];
+        options = shuffleArray(allOptions);
+    }
+    
     // Envoyer le nouveau round à tous les joueurs
     io.to(roomCode).emit('newRound', {
         round: room.currentRound,
         totalRounds: room.settings.totalRounds,
         country: currentCountry,
-        timerDuration: timerDuration
+        timerDuration: timerDuration,
+        gameMode: room.gameMode,
+        options: options // null pour mode location, tableau pour flags
     });
     
     // Démarrer le timer si nécessaire
@@ -522,14 +619,24 @@ function endCurrentRound(roomCode) {
         room.players.forEach(player => {
             const hasAnswer = roundData.answers.some(a => a.playerId === player.id);
             if (!hasAnswer) {
-                roundData.answers.push({
-                    playerId: player.id,
-                    username: player.username,
-                    clickLat: null,
-                    clickLng: null,
-                    distance: null,
-                    points: 0
-                });
+                if (room.gameMode === 'flags') {
+                    roundData.answers.push({
+                        playerId: player.id,
+                        username: player.username,
+                        selectedOption: null,
+                        isCorrect: false,
+                        points: 0
+                    });
+                } else {
+                    roundData.answers.push({
+                        playerId: player.id,
+                        username: player.username,
+                        clickLat: null,
+                        clickLng: null,
+                        distance: null,
+                        points: 0
+                    });
+                }
             }
         });
     }
@@ -611,17 +718,22 @@ function sendCurrentReviewState(roomCode) {
     const currentPlayer = room.players.find(p => p.id === currentPlayerId);
     const playerAnswer = roundData.answers.find(a => a.playerId === currentPlayerId);
     
-    io.to(roomCode).emit('showPlayerResult', {
-        round: state.currentRound,
-        totalRounds: room.settings.totalRounds,
-        playerIndex: state.currentPlayerIndex,
-        totalPlayers: room.players.length,
-        country: roundData.country,
-        player: {
-            id: currentPlayerId,
-            username: currentPlayer ? currentPlayer.username : 'Inconnu'
-        },
-        result: playerAnswer ? {
+    // Construire l'objet result selon le mode de jeu
+    let result;
+    if (room.gameMode === 'flags') {
+        // Mode drapeaux
+        result = playerAnswer ? {
+            selectedOption: playerAnswer.selectedOption,
+            isCorrect: playerAnswer.isCorrect,
+            points: playerAnswer.points
+        } : {
+            selectedOption: null,
+            isCorrect: false,
+            points: 0
+        };
+    } else {
+        // Mode localisation
+        result = playerAnswer ? {
             clickLat: playerAnswer.clickLat,
             clickLng: playerAnswer.clickLng,
             distance: playerAnswer.distance,
@@ -631,7 +743,21 @@ function sendCurrentReviewState(roomCode) {
             clickLng: null,
             distance: null,
             points: 0
+        };
+    }
+    
+    io.to(roomCode).emit('showPlayerResult', {
+        round: state.currentRound,
+        totalRounds: room.settings.totalRounds,
+        playerIndex: state.currentPlayerIndex,
+        totalPlayers: room.players.length,
+        country: roundData.country,
+        gameMode: room.gameMode, // Ajout du mode de jeu
+        player: {
+            id: currentPlayerId,
+            username: currentPlayer ? currentPlayer.username : 'Inconnu'
         },
+        result: result,
         isLastPlayerForRound: state.currentPlayerIndex >= room.players.length - 1,
         isLastRound: state.currentRound >= room.settings.totalRounds
     });

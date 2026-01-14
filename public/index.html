@@ -47,6 +47,20 @@
             </div>
             <p class="tagline">Mode Solo</p>
             
+            <div class="mode-select-section">
+                <h2>Mode de jeu</h2>
+                <div class="game-mode-selector">
+                    <button class="mode-selector-btn selected" data-mode="location">
+                        <span class="mode-icon">📍</span>
+                        <span>Localisation</span>
+                    </button>
+                    <button class="mode-selector-btn" data-mode="flags">
+                        <span class="mode-icon">🏴</span>
+                        <span>Drapeaux</span>
+                    </button>
+                </div>
+            </div>
+            
             <div class="difficulty-section">
                 <h2>Choisissez votre niveau</h2>
                 <div class="difficulty-cards">
@@ -103,21 +117,9 @@
                     <div class="lobby-card" id="create-room-section">
                         <h3>Créer un salon</h3>
                         <p>Créez un salon et invitez vos amis</p>
-                        <div class="difficulty-select">
-                            <label>Difficulté :</label>
-                            <select id="room-difficulty">
-                                <option value="easy">Facile</option>
-                                <option value="medium" selected>Moyen</option>
-                                <option value="hard">Difficile</option>
-                            </select>
-                        </div>
                         <button id="create-room-btn" class="btn-primary">
                             <span>Créer le salon</span>
                         </button>
-                    </div>
-                    
-                    <div class="lobby-divider">
-                        <span>OU</span>
                     </div>
                     
                     <div class="lobby-card" id="join-room-section">
@@ -161,6 +163,13 @@
 
             <!-- Paramètres de la partie (Host uniquement) -->
             <div id="room-settings" class="room-settings">
+                <div class="setting-item">
+                    <label for="setting-game-mode">Mode de jeu</label>
+                    <select id="setting-game-mode">
+                        <option value="location" selected>📍 Localisation</option>
+                        <option value="flags">🏴 Drapeaux</option>
+                    </select>
+                </div>
                 <div class="setting-item">
                     <label for="setting-questions">Questions</label>
                     <select id="setting-questions">
@@ -255,6 +264,27 @@
 
         <div id="map-container">
             <div id="map"></div>
+            
+            <!-- Conteneur pour le mode drapeaux -->
+            <div id="flag-game-container" class="flag-game-container hidden">
+                <div id="flag-display" class="flag-display">
+                    <img id="flag-image" src="" alt="Drapeau du pays">
+                </div>
+                <div id="flag-input-container" class="flag-input-container">
+                    <label for="flag-answer-input">Quel est ce pays ?</label>
+                    <div class="flag-input-wrapper">
+                        <input type="text" id="flag-answer-input" class="flag-answer-input" placeholder="Entrez le nom du pays..." autocomplete="off">
+                        <button id="flag-submit-btn" class="flag-submit-btn">
+                            <span>Valider</span>
+                            <svg viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p id="flag-feedback" class="flag-feedback hidden"></p>
+                </div>
+            </div>
+            
             <div id="hint-container" class="hint-box">
                 <span class="hint-icon">💡</span>
                 <span id="hint-text">Indice: Ce pays est en Europe</span>
@@ -345,25 +375,37 @@
             </div>
             
             <div class="review-content">
-                <div class="review-player-card">
-                    <h2 id="review-player-info" class="review-player-name">Joueur (1/4)</h2>
+                <div class="review-info-bar">
+                    <h2 id="review-player-info" class="review-player-name">Joueur</h2>
+                    <div class="review-separator">•</div>
                     <div class="review-country">
-                        <span>Pays recherché :</span>
+                        <span>Pays :</span>
                         <strong id="review-country-name">France</strong>
                     </div>
-                </div>
-                
-                <div class="review-result-section">
-                    <div class="review-emoji" id="review-result-emoji">🎯</div>
-                    <h3 id="review-result-title" class="review-result-title excellent">Excellent !</h3>
-                    <p id="review-distance" class="review-distance">Distance: 150 km</p>
-                    <div class="review-points" id="review-points">+950 points</div>
                 </div>
                 
                 <div id="review-map-container" class="review-map-container">
                     <div id="review-map" class="review-map"></div>
                 </div>
+                
+                <!-- Conteneur pour le mode drapeaux -->
+                <div id="review-flag-container" class="review-flag-container hidden">
+                    <div class="review-flag-display">
+                        <img id="review-flag-image" src="" alt="Drapeau du pays">
+                    </div>
+                    <div class="review-flag-answer">
+                        <p class="review-answer-label">Réponse donnée :</p>
+                        <p id="review-player-answer" class="review-player-answer">-</p>
+                        <p id="review-flag-result" class="review-flag-result">-</p>
+                    </div>
+                </div>
             </div>
+            
+            <!-- Éléments cachés pour compatibilité JS -->
+            <div id="review-result-emoji" style="display:none;"></div>
+            <div id="review-result-title" style="display:none;"></div>
+            <div id="review-distance" style="display:none;"></div>
+            <div id="review-points" style="display:none;"></div>
             
             <div class="review-controls">
                 <div id="review-host-controls" class="review-host-controls">

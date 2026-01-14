@@ -195,11 +195,13 @@ class GeoQuiz {
         // État du jeu
         this.state = {
             mode: null, // 'solo' ou 'multi'
+            gameMode: 'location', // 'location' ou 'flags'
             difficulty: null,
             currentRound: 0,
             score: 0,
             countries: [],
             currentCountry: null,
+            currentOptions: null, // Pour le mode drapeaux
             timer: null,
             timeLeft: 0,
             stats: {
@@ -235,12 +237,12 @@ class GeoQuiz {
             soloModeBtn: document.getElementById('solo-mode-btn'),
             multiModeBtn: document.getElementById('multi-mode-btn'),
             // Solo
+            modeSelectorBtns: document.querySelectorAll('.mode-selector-btn'),
             difficultyCards: document.querySelectorAll('.difficulty-card'),
             startBtn: document.getElementById('start-btn'),
             backToModeBtn: document.getElementById('back-to-mode-btn'),
             // Lobby
             usernameInput: document.getElementById('username-input'),
-            roomDifficulty: document.getElementById('room-difficulty'),
             createRoomBtn: document.getElementById('create-room-btn'),
             roomCodeInput: document.getElementById('room-code-input'),
             joinRoomBtn: document.getElementById('join-room-btn'),
@@ -256,6 +258,7 @@ class GeoQuiz {
             startMultiGameBtn: document.getElementById('start-multi-game-btn'),
             waitingMessage: document.getElementById('waiting-message'),
             // Room Settings
+            settingGameMode: document.getElementById('setting-game-mode'),
             settingQuestions: document.getElementById('setting-questions'),
             settingTime: document.getElementById('setting-time'),
             settingDifficulty: document.getElementById('setting-difficulty'),
@@ -270,6 +273,13 @@ class GeoQuiz {
             timerProgress: document.getElementById('timer-progress'),
             hintContainer: document.getElementById('hint-container'),
             hintText: document.getElementById('hint-text'),
+            // Flag Game
+            flagGameContainer: document.getElementById('flag-game-container'),
+            flagImage: document.getElementById('flag-image'),
+            flagInputContainer: document.getElementById('flag-input-container'),
+            flagAnswerInput: document.getElementById('flag-answer-input'),
+            flagSubmitBtn: document.getElementById('flag-submit-btn'),
+            flagFeedback: document.getElementById('flag-feedback'),
             // Solo Result
             resultOverlay: document.getElementById('result-overlay'),
             resultEmoji: document.getElementById('result-emoji'),
@@ -309,6 +319,10 @@ class GeoQuiz {
             reviewDistance: document.getElementById('review-distance'),
             reviewPoints: document.getElementById('review-points'),
             reviewMapContainer: document.getElementById('review-map-container'),
+            reviewFlagContainer: document.getElementById('review-flag-container'),
+            reviewFlagImage: document.getElementById('review-flag-image'),
+            reviewPlayerAnswer: document.getElementById('review-player-answer'),
+            reviewFlagResult: document.getElementById('review-flag-result'),
             nextPlayerBtn: document.getElementById('next-player-btn'),
             skipQuestionBtn: document.getElementById('skip-question-btn'),
             reviewHostControls: document.getElementById('review-host-controls'),
@@ -333,6 +347,8 @@ class GeoQuiz {
         // GeoJSON des frontières des pays
         this.countriesGeoJSON = null;
         this.geoJSONLoaded = false;
+        this.bordersLayer = null; // Couche pour afficher les frontières
+        this.reviewBordersLayer = null; // Couche pour la carte de révision
 
         this.init();
     }
@@ -348,11 +364,54 @@ class GeoQuiz {
             this.countriesGeoJSON = await response.json();
             this.geoJSONLoaded = true;
             console.log('✅ GeoJSON des frontières chargé avec succès');
+            
+            // Ajouter la couche de frontières à la carte principale si elle existe
+            if (this.map) {
+                this.addBordersToMap();
+            }
         } catch (error) {
             console.error('❌ Erreur lors du chargement du GeoJSON:', error);
             // Le jeu continue avec le mode distance classique si le GeoJSON échoue
             this.geoJSONLoaded = false;
         }
+    }
+
+    /**
+     * Ajoute une couche affichant les frontières des pays sur la carte principale
+     */
+    addBordersToMap() {
+        if (!this.map || !this.countriesGeoJSON || this.bordersLayer) return;
+        
+        this.bordersLayer = L.geoJSON(this.countriesGeoJSON, {
+            style: {
+                color: '#64748b',
+                weight: 1,
+                opacity: 0.5,
+                fillOpacity: 0
+            },
+            interactive: false // Les frontières ne doivent pas intercepter les clics
+        }).addTo(this.map);
+        
+        console.log('✅ Frontières des pays ajoutées à la carte');
+    }
+
+    /**
+     * Ajoute une couche affichant les frontières des pays sur la carte de révision
+     */
+    addBordersToReviewMap() {
+        if (!this.reviewMap || !this.countriesGeoJSON || this.reviewBordersLayer) return;
+        
+        this.reviewBordersLayer = L.geoJSON(this.countriesGeoJSON, {
+            style: {
+                color: '#64748b',
+                weight: 1,
+                opacity: 0.5,
+                fillOpacity: 0
+            },
+            interactive: false
+        }).addTo(this.reviewMap);
+        
+        console.log('✅ Frontières des pays ajoutées à la carte de révision');
     }
 
     /**
@@ -433,8 +492,24 @@ class GeoQuiz {
         this.initSocket();
         this.bindEvents();
         this.initMap();
+        this.setupHistoryNavigation();
         // Charger les frontières GeoJSON en arrière-plan
         this.loadCountriesGeoJSON();
+    }
+
+    setupHistoryNavigation() {
+        // Gérer les boutons retour/avant du navigateur
+        window.addEventListener('popstate', (event) => {
+            if (event.state && event.state.screen) {
+                this.showScreen(event.state.screen, true);
+            } else {
+                // Pas d'état, revenir à l'écran mode
+                this.showScreen('mode', true);
+            }
+        });
+        
+        // Définir l'état initial
+        history.replaceState({ screen: 'mode' }, '', '#');
     }
 
     // ==================== SOCKET.IO ====================
@@ -454,6 +529,7 @@ class GeoQuiz {
         this.state.socket.on('gameStarted', (data) => this.onGameStarted(data));
         this.state.socket.on('newRound', (data) => this.onNewRound(data));
         this.state.socket.on('playerRegistered', (data) => this.onPlayerRegistered(data));
+        this.state.socket.on('allPlayersAnswered', (data) => this.onAllPlayersAnswered(data));
         this.state.socket.on('roundTimeUp', (data) => this.onRoundTimeUp(data));
         
         // Review Events
@@ -470,6 +546,11 @@ class GeoQuiz {
         this.elements.soloModeBtn.addEventListener('click', () => this.selectMode('solo'));
         this.elements.multiModeBtn.addEventListener('click', () => this.selectMode('multi'));
 
+        // Solo game mode selection
+        this.elements.modeSelectorBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.selectGameMode(btn));
+        });
+        
         // Solo difficulty selection
         this.elements.difficultyCards.forEach(card => {
             card.addEventListener('click', () => this.selectDifficulty(card));
@@ -501,6 +582,7 @@ class GeoQuiz {
         this.elements.startMultiGameBtn.addEventListener('click', () => this.startMultiGame());
         
         // Settings listeners
+        this.elements.settingGameMode.addEventListener('change', () => this.updateRoomSettings());
         this.elements.settingQuestions.addEventListener('change', () => this.updateRoomSettings());
         this.elements.settingTime.addEventListener('change', () => this.updateRoomSettings());
         this.elements.settingDifficulty.addEventListener('change', () => this.updateRoomSettings());
@@ -512,6 +594,37 @@ class GeoQuiz {
         if (this.elements.skipQuestionBtn) {
             this.elements.skipQuestionBtn.addEventListener('click', () => this.skipToNextQuestion());
         }
+        
+        // Flag mode input submission
+        if (this.elements.flagSubmitBtn) {
+            this.elements.flagSubmitBtn.addEventListener('click', () => this.submitFlagAnswer());
+        }
+        if (this.elements.flagAnswerInput) {
+            this.elements.flagAnswerInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.submitFlagAnswer();
+                }
+            });
+        }
+    }
+    
+    /**
+     * Normalise un texte pour la comparaison :
+     * - Convertit en minuscules
+     * - Supprime les accents
+     * - Supprime les caractères spéciaux (tirets, apostrophes, etc.)
+     */
+    normalizeText(text) {
+        if (!text) return '';
+        return text
+            .toLowerCase()
+            // Normaliser les caractères accentués et les décomposer
+            .normalize('NFD')
+            // Supprimer les diacritiques (accents)
+            .replace(/[\u0300-\u036f]/g, '')
+            // Supprimer les tirets, apostrophes, espaces et autres caractères spéciaux
+            .replace(/[-'\s.,()]/g, '')
+            .trim();
     }
 
     // ==================== MODE & SCREEN MANAGEMENT ====================
@@ -525,12 +638,18 @@ class GeoQuiz {
         }
     }
 
-    showScreen(screenName) {
+    showScreen(screenName, skipHistory = false) {
         Object.values(this.elements.screens).forEach(screen => {
             if (screen) screen.classList.remove('active');
         });
         if (this.elements.screens[screenName]) {
             this.elements.screens[screenName].classList.add('active');
+        }
+        
+        // Mettre à jour l'historique du navigateur
+        if (!skipHistory) {
+            const url = screenName === 'mode' ? '#' : `#${screenName}`;
+            history.pushState({ screen: screenName }, '', url);
         }
         
         // Initialiser la carte de révision si nécessaire
@@ -541,6 +660,12 @@ class GeoQuiz {
 
     // ==================== SOLO MODE ====================
 
+    selectGameMode(btn) {
+        this.elements.modeSelectorBtns.forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        this.state.gameMode = btn.dataset.mode;
+    }
+    
     selectDifficulty(card) {
         this.elements.difficultyCards.forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
@@ -560,6 +685,15 @@ class GeoQuiz {
         this.elements.currentDifficulty.textContent = diffConfig.name;
         this.elements.score.textContent = '0';
 
+        // Réinitialiser l'UI pour éviter le "ghost country"
+        this.elements.countryName.textContent = 'Préparez-vous...';
+        
+        // Masquer le prompt "Trouvez" pendant la préparation (surtout pour le mode drapeaux)
+        const countryPrompt = document.querySelector('.country-prompt');
+        if (countryPrompt) {
+            countryPrompt.style.visibility = 'hidden';
+        }
+        
         // Mettre à jour le total des questions dans l'UI
         const roundInfo = document.querySelector('.round-info');
         if (roundInfo) {
@@ -567,6 +701,10 @@ class GeoQuiz {
             // Re-référencer currentRound car on vient de changer l'innerHTML
             this.elements.currentRound = document.getElementById('current-round');
         }
+
+        // Masquer le conteneur de drapeaux par défaut
+        this.elements.flagGameContainer.classList.add('hidden');
+        document.getElementById('map').style.display = 'block';
 
         if (diffConfig.timer) {
             this.elements.timerContainer.classList.remove('hidden');
@@ -621,9 +759,10 @@ class GeoQuiz {
 
         this.hideLobbyError();
         this.state.username = username;
-        const difficulty = this.elements.roomDifficulty.value;
+        const difficulty = 'medium'; // Difficulté par défaut, sera configurable dans la salle d'attente
+        const gameMode = 'location'; // Par défaut
 
-        this.state.socket.emit('createRoom', { username, difficulty });
+        this.state.socket.emit('createRoom', { username, difficulty, gameMode });
     }
 
     joinRoom() {
@@ -654,6 +793,7 @@ class GeoQuiz {
         this.state.isHost = true;
         this.state.players = data.players;
         this.state.difficulty = data.difficulty;
+        this.state.gameMode = data.gameMode || 'location';
         
         if (data.settings) {
             this.config.totalRounds = data.settings.totalRounds;
@@ -661,7 +801,7 @@ class GeoQuiz {
         }
 
         this.updateWaitingRoom();
-        this.applySettingsToUI(data.difficulty, data.settings);
+        this.applySettingsToUI(data.difficulty, data.gameMode, data.settings);
         this.showScreen('waitingRoom');
     }
 
@@ -670,9 +810,10 @@ class GeoQuiz {
         this.state.isHost = data.isHost;
         this.state.players = data.players;
         this.state.difficulty = data.difficulty;
+        this.state.gameMode = data.gameMode || 'location';
 
         this.updateWaitingRoom();
-        this.applySettingsToUI(data.difficulty, data.settings);
+        this.applySettingsToUI(data.difficulty, data.gameMode, data.settings);
         this.showScreen('waitingRoom');
     }
 
@@ -733,6 +874,7 @@ class GeoQuiz {
     updateRoomSettings() {
         if (!this.state.isHost) return;
 
+        const gameMode = this.elements.settingGameMode.value;
         const difficulty = this.elements.settingDifficulty.value;
         const totalRounds = parseInt(this.elements.settingQuestions.value);
         const timerValue = parseInt(this.elements.settingTime.value);
@@ -741,10 +883,12 @@ class GeoQuiz {
         // Mettre à jour la config locale immédiatement pour éviter les race conditions
         this.config.totalRounds = totalRounds;
         this.state.difficulty = difficulty;
+        this.state.gameMode = gameMode;
 
         this.state.socket.emit('updateSettings', {
             roomCode: this.state.roomCode,
             settings: {
+                gameMode,
                 difficulty,
                 totalRounds,
                 timer
@@ -754,13 +898,17 @@ class GeoQuiz {
 
     onSettingsUpdated(data) {
         this.state.difficulty = data.difficulty;
-        this.applySettingsToUI(data.difficulty, data.settings);
+        this.state.gameMode = data.gameMode || 'location';
+        this.applySettingsToUI(data.difficulty, data.gameMode, data.settings);
     }
 
-    applySettingsToUI(difficulty, settings) {
+    applySettingsToUI(difficulty, gameMode, settings) {
         if (!settings) return;
 
         this.elements.roomDifficultyDisplay.textContent = this.config.difficulties[difficulty].name;
+        if (this.elements.settingGameMode) {
+            this.elements.settingGameMode.value = gameMode || 'location';
+        }
         this.elements.settingDifficulty.value = difficulty;
         this.elements.settingQuestions.value = settings.totalRounds;
         this.elements.settingTime.value = settings.timer === null ? 0 : settings.timer;
@@ -802,6 +950,7 @@ class GeoQuiz {
 
     onGameStarted(data) {
         this.state.mode = 'multi';
+        this.state.gameMode = data.gameMode || 'location';
         this.state.currentRound = 0;
         this.state.score = 0;
         this.state.stats = { perfect: 0, good: 0, average: 0, missed: 0 };
@@ -833,10 +982,24 @@ class GeoQuiz {
             this.elements.currentRound = document.getElementById('current-round');
         }
 
+        // Pendant "Préparez-vous", on garde tout masqué
+        // Le conteneur de drapeaux ou la carte sera affiché lors du premier round
+        document.getElementById('map').style.display = 'block';
+        this.elements.flagGameContainer.classList.add('hidden');
+        this.elements.hintContainer.classList.add('hidden');
+        
+        // Masquer le prompt "Trouvez" pendant la préparation
+        const countryPrompt = document.querySelector('.country-prompt');
+        if (countryPrompt) {
+            countryPrompt.style.visibility = 'hidden';
+        }
+
         this.showScreen('game');
 
         setTimeout(() => {
-            if (this.map) this.map.invalidateSize();
+            if (this.map && this.state.gameMode !== 'flags') {
+                this.map.invalidateSize();
+            }
         }, 100);
     }
 
@@ -847,6 +1010,8 @@ class GeoQuiz {
         }
         this.state.currentRound = data.round;
         this.state.currentCountry = data.country;
+        this.state.gameMode = data.gameMode || 'location';
+        this.state.currentOptions = data.options || null;
         this.state.pendingClick = null;
         this.state.hasRegistered = false;
 
@@ -861,7 +1026,6 @@ class GeoQuiz {
 
         // Mettre à jour l'UI
         this.elements.currentRound.textContent = data.round;
-        this.elements.countryName.textContent = data.country.name;
         
         // S'assurer que le total est correct (au cas où on rejoindrait en cours de route)
         const roundInfo = document.querySelector('.round-info');
@@ -878,17 +1042,41 @@ class GeoQuiz {
             this.elements.totalPlayersGame.textContent = this.state.players.length;
         }
 
-        // Gérer l'indice
-        const diffConfig = this.config.difficulties[this.state.difficulty];
-        if (diffConfig.showHint && data.country.hint) {
-            this.elements.hintContainer.classList.remove('hidden');
-            this.elements.hintText.textContent = `Indice: ${data.country.hint}`;
-        } else {
+        // Basculer entre mode carte et mode drapeaux
+        const countryPrompt = document.querySelector('.country-prompt');
+        
+        if (this.state.gameMode === 'flags') {
+            // Mode drapeaux - Masquer le prompt "Trouvez" car c'est le drapeau qu'il faut identifier
+            if (countryPrompt) {
+                countryPrompt.style.visibility = 'hidden';
+            }
             this.elements.hintContainer.classList.add('hidden');
-        }
+            document.getElementById('map').style.display = 'none';
+            this.elements.flagGameContainer.classList.remove('hidden');
+            
+            // Display flag from server
+            this.displayFlagQuestionMulti();
+        } else {
+            // Mode localisation - Afficher le nom du pays
+            if (countryPrompt) {
+                countryPrompt.style.visibility = 'visible';
+            }
+            this.elements.countryName.textContent = data.country.name;
+            document.getElementById('map').style.display = 'block';
+            this.elements.flagGameContainer.classList.add('hidden');
+            
+            // Gérer l'indice
+            const diffConfig = this.config.difficulties[this.state.difficulty];
+            if (diffConfig.showHint && data.country.hint) {
+                this.elements.hintContainer.classList.remove('hidden');
+                this.elements.hintText.textContent = `Indice: ${data.country.hint}`;
+            } else {
+                this.elements.hintContainer.classList.add('hidden');
+            }
 
-        // Réinitialiser la vue de la carte
-        this.map.setView([20, 0], 2);
+            // Réinitialiser la vue de la carte
+            this.map.setView([20, 0], 2);
+        }
 
         // Démarrer le timer si nécessaire
         if (data.timerDuration) {
@@ -903,6 +1091,38 @@ class GeoQuiz {
         }
         if (this.elements.totalPlayersGame) {
             this.elements.totalPlayersGame.textContent = data.totalPlayers;
+        }
+    }
+
+    onAllPlayersAnswered(data) {
+        // Tout le monde a répondu : réduire le timer à 3 secondes si nécessaire
+        if (this.state.timeLeft > data.newTimeLeft) {
+            // Arrêter l'ancien timer
+            if (this.state.timer) {
+                clearInterval(this.state.timer);
+                this.state.timer = null;
+            }
+            
+            // Mettre à jour le temps restant
+            this.state.timeLeft = data.newTimeLeft;
+            this.elements.timer.textContent = this.state.timeLeft;
+            
+            // Calculer le pourcentage pour la barre de progression
+            // On considère que 3 secondes = 100% pour cet affichage réduit
+            this.updateTimerProgress(this.state.timeLeft, data.newTimeLeft);
+            
+            // Redémarrer le timer avec le nouveau temps
+            this.state.timer = setInterval(() => {
+                this.state.timeLeft--;
+                this.elements.timer.textContent = this.state.timeLeft;
+                this.updateTimerProgress(this.state.timeLeft, data.newTimeLeft);
+
+                if (this.state.timeLeft <= 0) {
+                    clearInterval(this.state.timer);
+                    this.state.timer = null;
+                    // Le serveur enverra roundTimeUp, on n'a pas besoin de handleTimeout ici
+                }
+            }, 1000);
         }
     }
 
@@ -972,10 +1192,40 @@ class GeoQuiz {
             this.elements.reviewRoundInfo.textContent = `Question ${data.round}/${data.totalRounds}`;
         }
         
-        // Mettre à jour les infos du joueur
+        // Mettre à jour les infos du joueur avec couleur selon performance
         if (this.elements.reviewPlayerInfo) {
             const isCurrentUser = data.player.id === this.state.socket.id;
-            this.elements.reviewPlayerInfo.textContent = `${data.player.username}${isCurrentUser ? ' (vous)' : ''} (${data.playerIndex + 1}/${data.totalPlayers})`;
+            this.elements.reviewPlayerInfo.textContent = `${data.player.username}${isCurrentUser ? ' (vous)' : ''}`;
+            
+            // Appliquer la classe de couleur selon les points
+            const result = data.result;
+            this.elements.reviewPlayerInfo.classList.remove('score-perfect', 'score-good', 'score-average', 'score-poor', 'score-miss');
+            
+            // En mode drapeaux, utiliser isCorrect pour déterminer la couleur
+            if (data.gameMode === 'flags') {
+                if (result.selectedOption === null || result.selectedOption === undefined) {
+                    this.elements.reviewPlayerInfo.classList.add('score-miss');
+                } else if (result.isCorrect) {
+                    this.elements.reviewPlayerInfo.classList.add('score-perfect');
+                } else {
+                    this.elements.reviewPlayerInfo.classList.add('score-miss');
+                }
+            } else {
+                // Mode localisation - utiliser la distance
+                if (result.distance === null) {
+                    this.elements.reviewPlayerInfo.classList.add('score-miss');
+                } else if (result.points >= 900) {
+                    this.elements.reviewPlayerInfo.classList.add('score-perfect');
+                } else if (result.points >= 500) {
+                    this.elements.reviewPlayerInfo.classList.add('score-good');
+                } else if (result.points >= 200) {
+                    this.elements.reviewPlayerInfo.classList.add('score-average');
+                } else if (result.points > 0) {
+                    this.elements.reviewPlayerInfo.classList.add('score-poor');
+                } else {
+                    this.elements.reviewPlayerInfo.classList.add('score-miss');
+                }
+            }
         }
         
         // Nom du pays
@@ -983,11 +1233,11 @@ class GeoQuiz {
             this.elements.reviewCountryName.textContent = data.country.name;
         }
         
-        // Résultat
+        // Résultat (gardé pour compatibilité)
         const result = data.result;
         let emoji, title, titleClass;
         
-        if (result.distance === null) {
+        if (result.distance === null && data.gameMode !== 'flags') {
             emoji = '⏰';
             title = 'Pas de réponse';
             titleClass = 'poor';
@@ -1027,8 +1277,14 @@ class GeoQuiz {
             this.elements.reviewPoints.textContent = `+${result.points} points`;
         }
         
-        // Mettre à jour la carte de révision
-        this.updateReviewMap(data.country, result);
+        // Basculer entre mode carte et mode drapeaux pour la révision
+        if (data.gameMode === 'flags') {
+            // Mode drapeaux - afficher le drapeau
+            this.updateReviewFlag(data.country, result);
+        } else {
+            // Mode localisation - afficher la carte
+            this.updateReviewMap(data.country, result);
+        }
         
         // Mettre à jour le texte des boutons
         if (this.elements.nextPlayerBtn) {
@@ -1081,9 +1337,22 @@ class GeoQuiz {
             subdomains: 'abcd',
             maxZoom: 20
         }).addTo(this.reviewMap);
+        
+        // Ajouter les frontières si le GeoJSON est déjà chargé
+        if (this.geoJSONLoaded && this.countriesGeoJSON) {
+            this.addBordersToReviewMap();
+        }
     }
 
     updateReviewMap(country, result) {
+        // Afficher la carte, cacher le drapeau
+        if (this.elements.reviewMapContainer) {
+            this.elements.reviewMapContainer.style.display = 'block';
+        }
+        if (this.elements.reviewFlagContainer) {
+            this.elements.reviewFlagContainer.classList.add('hidden');
+        }
+        
         if (!this.reviewMap) {
             this.initReviewMap();
             setTimeout(() => this.updateReviewMap(country, result), 200);
@@ -1152,6 +1421,48 @@ class GeoQuiz {
         }
     }
 
+    updateReviewFlag(country, result) {
+        // Cacher la carte, afficher le drapeau
+        if (this.elements.reviewMapContainer) {
+            this.elements.reviewMapContainer.style.display = 'none';
+        }
+        if (this.elements.reviewFlagContainer) {
+            this.elements.reviewFlagContainer.classList.remove('hidden');
+        }
+        
+        // Afficher le drapeau
+        if (this.elements.reviewFlagImage && country.code) {
+            const flagUrl = `https://flagcdn.com/w640/${country.code}.png`;
+            this.elements.reviewFlagImage.src = flagUrl;
+            this.elements.reviewFlagImage.alt = `Drapeau de ${country.name}`;
+        }
+        
+        // Afficher la réponse du joueur
+        if (this.elements.reviewPlayerAnswer) {
+            if (result.selectedOption === null || result.selectedOption === undefined) {
+                this.elements.reviewPlayerAnswer.textContent = '(Pas de réponse)';
+            } else {
+                this.elements.reviewPlayerAnswer.textContent = result.selectedOption;
+            }
+        }
+        
+        // Afficher le résultat (correct/incorrect)
+        if (this.elements.reviewFlagResult) {
+            this.elements.reviewFlagResult.classList.remove('correct', 'incorrect', 'no-answer');
+            
+            if (result.selectedOption === null || result.selectedOption === undefined) {
+                this.elements.reviewFlagResult.textContent = '⏰ Temps écoulé';
+                this.elements.reviewFlagResult.classList.add('no-answer');
+            } else if (result.isCorrect) {
+                this.elements.reviewFlagResult.textContent = `✅ Correct ! +${result.points} points`;
+                this.elements.reviewFlagResult.classList.add('correct');
+            } else {
+                this.elements.reviewFlagResult.textContent = `❌ Incorrect - La bonne réponse était : ${country.name}`;
+                this.elements.reviewFlagResult.classList.add('incorrect');
+            }
+        }
+    }
+
     showNextPlayerResult() {
         if (!this.state.isHost) return;
         this.state.socket.emit('showNextPlayerResult', { roomCode: this.state.roomCode });
@@ -1178,6 +1489,7 @@ class GeoQuiz {
     onReturnedToLobby(data) {
         this.state.players = data.players;
         this.state.difficulty = data.difficulty;
+        this.state.gameMode = data.gameMode || 'location';
         
         // Réinitialiser l'état local pour une nouvelle partie
         this.state.currentRound = 0;
@@ -1186,7 +1498,7 @@ class GeoQuiz {
         this.state.hasRegistered = false;
 
         this.updateWaitingRoom();
-        this.applySettingsToUI(data.difficulty, data.settings);
+        this.applySettingsToUI(data.difficulty, data.gameMode, data.settings);
         this.showScreen('waitingRoom');
         
         // Message de confirmation
@@ -1280,6 +1592,11 @@ class GeoQuiz {
         }).addTo(this.map);
 
         this.map.on('click', (e) => this.handleMapClick(e));
+        
+        // Ajouter les frontières si le GeoJSON est déjà chargé
+        if (this.geoJSONLoaded && this.countriesGeoJSON) {
+            this.addBordersToMap();
+        }
     }
 
     handleMapClick(e) {
@@ -1408,17 +1725,41 @@ class GeoQuiz {
         this.state.currentCountry = this.state.countries[this.state.currentRound - 1];
 
         this.elements.currentRound.textContent = this.state.currentRound;
-        this.elements.countryName.textContent = this.state.currentCountry.name;
 
         const diffConfig = this.config.difficulties[this.state.difficulty];
-        if (diffConfig.showHint && this.state.currentCountry.hint) {
-            this.elements.hintContainer.classList.remove('hidden');
-            this.elements.hintText.textContent = `Indice: ${this.state.currentCountry.hint}`;
-        } else {
+        const countryPrompt = document.querySelector('.country-prompt');
+        
+        // Basculer entre mode carte et mode drapeaux
+        if (this.state.gameMode === 'flags') {
+            // Mode drapeaux - Masquer le prompt "Trouvez" car c'est le drapeau qu'il faut identifier
+            if (countryPrompt) {
+                countryPrompt.style.visibility = 'hidden';
+            }
             this.elements.hintContainer.classList.add('hidden');
-        }
+            document.getElementById('map').style.display = 'none';
+            this.elements.flagGameContainer.classList.remove('hidden');
+            
+            // Afficher la question
+            this.displayFlagQuestion();
+        } else {
+            // Mode localisation - Afficher le nom du pays
+            if (countryPrompt) {
+                countryPrompt.style.visibility = 'visible';
+            }
+            this.elements.countryName.textContent = this.state.currentCountry.name;
+            // Mode localisation
+            document.getElementById('map').style.display = 'block';
+            this.elements.flagGameContainer.classList.add('hidden');
+            
+            if (diffConfig.showHint && this.state.currentCountry.hint) {
+                this.elements.hintContainer.classList.remove('hidden');
+                this.elements.hintText.textContent = `Indice: ${this.state.currentCountry.hint}`;
+            } else {
+                this.elements.hintContainer.classList.add('hidden');
+            }
 
-        this.map.setView([20, 0], 2);
+            this.map.setView([20, 0], 2);
+        }
 
         if (diffConfig.timer) {
             this.startTimer(diffConfig.timer);
@@ -1467,7 +1808,37 @@ class GeoQuiz {
         }
         
         // Mode solo
-        this.showResult(null);
+        if (this.state.gameMode === 'flags') {
+            // Timeout en mode drapeau
+            this.handleFlagTimeout();
+        } else {
+            // Timeout en mode localisation
+            this.showResult(null);
+        }
+    }
+    
+    handleFlagTimeout() {
+        // Désactiver les inputs
+        if (this.elements.flagAnswerInput) {
+            this.elements.flagAnswerInput.disabled = true;
+            this.elements.flagAnswerInput.classList.add('incorrect');
+        }
+        if (this.elements.flagSubmitBtn) {
+            this.elements.flagSubmitBtn.disabled = true;
+        }
+        
+        // Afficher le feedback
+        if (this.elements.flagFeedback) {
+            this.elements.flagFeedback.classList.remove('hidden', 'correct', 'incorrect');
+            this.elements.flagFeedback.classList.add('incorrect');
+            this.elements.flagFeedback.textContent = `⏰ Temps écoulé ! C'était ${this.state.currentCountry.name}`;
+        }
+        
+        // Mettre à jour les stats (0 points)
+        this.updateStats(0);
+        
+        // Afficher le résultat
+        this.displayFlagResult(false, 0, true);
     }
 
     showResult(clickLatLng) {
@@ -1523,16 +1894,23 @@ class GeoQuiz {
     }
 
     calculatePoints(distance) {
-        if (distance <= 300) return 1000;
-        if (distance <= 500) return 900;
-        if (distance <= 750) return 800;
-        if (distance <= 1000) return 700;
-        if (distance <= 1500) return 550;
-        if (distance <= 2000) return 400;
-        if (distance <= 2500) return 300;
-        if (distance <= 3000) return 200;
-        if (distance <= 4000) return 100;
-        if (distance <= 5000) return 50;
+        // Distance = 0 signifie que le clic est à l'intérieur du pays (score parfait)
+        if (distance === 0) return 1000;
+        
+        // Nouvelle échelle progressive sans plateau
+        if (distance <= 50) return 950;
+        if (distance <= 100) return 900;
+        if (distance <= 200) return 850;
+        if (distance <= 300) return 800;
+        if (distance <= 500) return 700;
+        if (distance <= 750) return 600;
+        if (distance <= 1000) return 500;
+        if (distance <= 1500) return 400;
+        if (distance <= 2000) return 300;
+        if (distance <= 2500) return 200;
+        if (distance <= 3000) return 100;
+        if (distance <= 4000) return 50;
+        if (distance <= 5000) return 25;
         return 0;
     }
 
@@ -1607,7 +1985,7 @@ class GeoQuiz {
 
         setTimeout(() => {
             this.elements.nextBtn.disabled = false;
-        }, 2000);
+        }, 500);
     }
 
     clearMarkers() {
@@ -1627,6 +2005,196 @@ class GeoQuiz {
             this.map.removeLayer(this.markers.pending);
             this.markers.pending = null;
         }
+    }
+
+    // ==================== FLAG MODE METHODS ====================
+    
+    displayFlagQuestion() {
+        // Afficher le drapeau
+        const flagUrl = `https://flagcdn.com/w640/${this.state.currentCountry.code}.png`;
+        this.elements.flagImage.src = flagUrl;
+        this.elements.flagImage.alt = `Drapeau`;
+        
+        // Réinitialiser le champ de saisie
+        if (this.elements.flagAnswerInput) {
+            this.elements.flagAnswerInput.value = '';
+            this.elements.flagAnswerInput.disabled = false;
+            this.elements.flagAnswerInput.classList.remove('correct', 'incorrect');
+            this.elements.flagAnswerInput.focus();
+        }
+        if (this.elements.flagSubmitBtn) {
+            this.elements.flagSubmitBtn.disabled = false;
+        }
+        if (this.elements.flagFeedback) {
+            this.elements.flagFeedback.classList.add('hidden');
+            this.elements.flagFeedback.classList.remove('correct', 'incorrect');
+        }
+    }
+    
+    displayFlagQuestionMulti() {
+        // Afficher le drapeau (même pour le multi)
+        const flagUrl = `https://flagcdn.com/w640/${this.state.currentCountry.code}.png`;
+        this.elements.flagImage.src = flagUrl;
+        this.elements.flagImage.alt = `Drapeau du pays`;
+        
+        // Réinitialiser le champ de saisie
+        if (this.elements.flagAnswerInput) {
+            this.elements.flagAnswerInput.value = '';
+            this.elements.flagAnswerInput.disabled = false;
+            this.elements.flagAnswerInput.classList.remove('correct', 'incorrect');
+            this.elements.flagAnswerInput.focus();
+        }
+        if (this.elements.flagSubmitBtn) {
+            this.elements.flagSubmitBtn.disabled = false;
+        }
+        if (this.elements.flagFeedback) {
+            this.elements.flagFeedback.classList.add('hidden');
+            this.elements.flagFeedback.classList.remove('correct', 'incorrect');
+        }
+    }
+    
+    submitFlagAnswer() {
+        if (!this.elements.flagAnswerInput || this.elements.flagAnswerInput.disabled) return;
+        
+        const userAnswer = this.elements.flagAnswerInput.value.trim();
+        if (!userAnswer) return;
+        
+        const correctAnswer = this.state.currentCountry.name;
+        const isCorrect = this.normalizeText(userAnswer) === this.normalizeText(correctAnswer);
+        
+        // Multiplayer mode - register answer with server
+        if (this.state.mode === 'multi') {
+            if (this.state.hasRegistered) return;
+            
+            // Disable input
+            this.elements.flagAnswerInput.disabled = true;
+            this.elements.flagSubmitBtn.disabled = true;
+            this.elements.flagAnswerInput.classList.add(isCorrect ? 'correct' : 'incorrect');
+            
+            // Send answer to server
+            this.state.socket.emit('registerAnswer', {
+                roomCode: this.state.roomCode,
+                selectedOption: userAnswer,
+                isCorrect: isCorrect
+            });
+            
+            this.state.hasRegistered = true;
+            
+            // Show registered overlay
+            if (this.elements.multiRegisteredOverlay) {
+                this.elements.multiRegisteredOverlay.classList.remove('hidden');
+                this.elements.registeredStatus.textContent = '✅ Réponse enregistrée !';
+            }
+            
+            return;
+        }
+        
+        // Solo mode - immediate result
+        // Stop timer
+        if (this.state.timer) {
+            clearInterval(this.state.timer);
+            this.state.timer = null;
+        }
+        
+        // Disable input
+        this.elements.flagAnswerInput.disabled = true;
+        this.elements.flagSubmitBtn.disabled = true;
+        
+        // Calculate points
+        const timeLeft = this.state.timeLeft;
+        const totalTime = this.config.difficulties[this.state.difficulty].timer;
+        const points = this.calculateFlagPoints(isCorrect, timeLeft, totalTime);
+        
+        // Update score and stats
+        this.state.score += points;
+        this.elements.score.textContent = this.state.score.toLocaleString();
+        this.updateStats(points);
+        
+        // Show visual feedback on input
+        this.elements.flagAnswerInput.classList.add(isCorrect ? 'correct' : 'incorrect');
+        
+        // Show feedback message
+        if (this.elements.flagFeedback) {
+            this.elements.flagFeedback.classList.remove('hidden', 'correct', 'incorrect');
+            this.elements.flagFeedback.classList.add(isCorrect ? 'correct' : 'incorrect');
+            if (isCorrect) {
+                this.elements.flagFeedback.textContent = `✅ Correct ! C'était bien ${correctAnswer}`;
+            } else {
+                this.elements.flagFeedback.textContent = `❌ Incorrect ! C'était ${correctAnswer}`;
+            }
+        }
+        
+        // Show result overlay
+        this.displayFlagResult(isCorrect, points);
+    }
+    
+    calculateFlagPoints(isCorrect, timeLeft, totalTime) {
+        if (!isCorrect) return 0;
+        
+        const basePoints = 800;
+        const speedBonus = totalTime && timeLeft > 0 ? Math.floor((timeLeft / totalTime) * 200) : 200;
+        
+        return basePoints + speedBonus;
+    }
+    
+    displayFlagResult(isCorrect, points, isTimeout = false) {
+        let emoji, title, titleClass;
+        
+        if (isTimeout) {
+            emoji = '⏰';
+            title = 'Temps écoulé !';
+            titleClass = 'poor';
+        } else if (isCorrect) {
+            if (points >= 950) {
+                emoji = '⚡';
+                title = 'Ultra rapide !';
+                titleClass = 'excellent';
+            } else if (points >= 900) {
+                emoji = '🎯';
+                title = 'Excellent !';
+                titleClass = 'excellent';
+            } else {
+                emoji = '👍';
+                title = 'Bien joué !';
+                titleClass = 'good';
+            }
+        } else {
+            emoji = '❌';
+            title = 'Incorrect';
+            titleClass = 'poor';
+        }
+        
+        this.elements.resultEmoji.textContent = emoji;
+        this.elements.resultTitle.textContent = title;
+        this.elements.resultTitle.className = titleClass;
+        this.elements.resultDistance.textContent = isCorrect 
+            ? `Bonne réponse : ${this.state.currentCountry.name}` 
+            : `C'était : ${this.state.currentCountry.name}`;
+        this.elements.resultPoints.textContent = points;
+        
+        // Change button text if last round
+        this.elements.nextBtn.disabled = true;
+        if (this.state.currentRound >= this.config.totalRounds) {
+            this.elements.nextBtn.innerHTML = `
+                <span>Voir les résultats</span>
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                </svg>
+            `;
+        } else {
+            this.elements.nextBtn.innerHTML = `
+                <span>Question suivante</span>
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                </svg>
+            `;
+        }
+        
+        this.elements.resultOverlay.classList.remove('hidden');
+        
+        setTimeout(() => {
+            this.elements.nextBtn.disabled = false;
+        }, 500);
     }
 
     endGame() {

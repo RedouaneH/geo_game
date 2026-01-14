@@ -411,12 +411,22 @@ body {
     width: 100%;
     height: 100%;
     background: #1a1a2e;
+    cursor: pointer !important;
 }
 
 /* Leaflet Customization */
 .leaflet-container {
     background: #1a1a2e;
     font-family: 'Poppins', sans-serif;
+    cursor: pointer !important;
+}
+
+.leaflet-grab {
+    cursor: pointer !important;
+}
+
+.leaflet-dragging .leaflet-grab {
+    cursor: grabbing !important;
 }
 
 .leaflet-tile-pane {
