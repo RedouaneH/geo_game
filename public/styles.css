@@ -567,6 +567,12 @@ body {
     color: var(--accent);
 }
 
+.room-code-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
 .room-difficulty-badge {
     display: inline-block;
     background: linear-gradient(135deg, var(--primary), var(--secondary));
