@@ -1023,9 +1023,9 @@ class GeoQuiz {
         if (difficulty === 'easy') {
             pool = COUNTRIES.filter(c => c.difficulty === 'easy');
         } else if (difficulty === 'medium') {
-            pool = [...COUNTRIES];
+            pool = COUNTRIES.filter(c => c.difficulty === 'easy' || c.difficulty === 'medium');
         } else {
-            pool = COUNTRIES.filter(c => c.difficulty !== 'easy');
+            pool = COUNTRIES.filter(c => c.difficulty === 'hard');
         }
 
         this.state.countries = this.shuffleArray(pool).slice(0, this.config.totalRounds);
@@ -1261,15 +1261,10 @@ class GeoQuiz {
         const diffConfig = this.config.difficulties[this.state.difficulty];
         this.elements.currentDifficulty.textContent = diffConfig.name;
         
-        // Afficher le score selon le mode de jeu
-        if (this.state.gameMode === 'location') {
-            this.elements.score.textContent = '0%';
-            const scoreLabel = document.querySelector('.score-label');
-            if (scoreLabel) {
-                scoreLabel.textContent = 'Réussite';
-            }
-        } else {
-            this.elements.score.textContent = '-'; // Pas de score affiché en mode drapeaux multi
+        // Masquer le score-display en mode multijoueur
+        const scoreDisplay = document.querySelector('.score-display');
+        if (scoreDisplay) {
+            scoreDisplay.style.display = 'none';
         }
 
         const timerDuration = data.timer;
