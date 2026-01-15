@@ -188,6 +188,12 @@ class GeoQuiz {
                     timer: 15,
                     showHint: false,
                     countries: 'obscure'
+                },
+                random: {
+                    name: 'Aléatoire',
+                    timer: 25,
+                    showHint: false,
+                    countries: 'random'
                 }
             }
         };
@@ -1024,6 +1030,11 @@ class GeoQuiz {
             pool = COUNTRIES.filter(c => c.difficulty === 'easy');
         } else if (difficulty === 'medium') {
             pool = COUNTRIES.filter(c => c.difficulty === 'easy' || c.difficulty === 'medium');
+        } else if (difficulty === 'hard') {
+            pool = COUNTRIES.filter(c => c.difficulty === 'hard');
+        } else if (difficulty === 'random') {
+            // Mode aléatoire : prendre tous les pays
+            pool = [...COUNTRIES];
         } else {
             pool = COUNTRIES.filter(c => c.difficulty === 'hard');
         }
