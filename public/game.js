@@ -1871,10 +1871,6 @@ class GeoQuiz {
     }
 
     returnToLobby() {
-        if (!this.state.isHost) {
-            alert("Seul l'hôte peut relancer une partie.");
-            return;
-        }
         this.state.socket.emit('returnToLobby', { roomCode: this.state.roomCode });
     }
 
@@ -1966,13 +1962,9 @@ class GeoQuiz {
         this.showScreen('multiEnd');
         this.launchConfetti(this.elements.multiConfetti);
 
-        // Afficher/masquer le bouton de retour au lobby selon si on est l'hôte
+        // Afficher le bouton de retour au lobby pour tous les joueurs
         if (this.elements.multiReplayBtn) {
-            if (this.state.isHost) {
-                this.elements.multiReplayBtn.style.display = 'inline-flex';
-            } else {
-                this.elements.multiReplayBtn.style.display = 'none';
-            }
+            this.elements.multiReplayBtn.style.display = 'inline-flex';
         }
     }
 
@@ -2271,24 +2263,38 @@ class GeoQuiz {
     }
     
     handleFlagTimeout() {
+        // Récupérer la réponse actuellement écrite
+        const userAnswer = this.elements.flagAnswerInput ? this.elements.flagAnswerInput.value.trim() : '';
+        const correctAnswer = this.state.currentCountry.name;
+        const isCorrect = userAnswer && this.normalizeText(userAnswer) === this.normalizeText(correctAnswer);
+        
         // Désactiver les inputs
         if (this.elements.flagAnswerInput) {
             this.elements.flagAnswerInput.disabled = true;
-            this.elements.flagAnswerInput.classList.add('incorrect');
+            this.elements.flagAnswerInput.classList.add(isCorrect ? 'correct' : 'incorrect');
         }
         if (this.elements.flagSubmitBtn) {
             this.elements.flagSubmitBtn.disabled = true;
         }
         
+        // Calculer les points
+        const points = isCorrect ? this.calculateFlagPoints(true, 0, this.config.difficulties[this.state.difficulty].timer) : 0;
+        
+        // Mettre à jour le score et les stats
+        this.state.score += points;
+        this.elements.score.textContent = this.state.score.toLocaleString();
+        this.updateStats(points);
+        
         // Afficher le feedback
         if (this.elements.flagFeedback) {
             this.elements.flagFeedback.classList.remove('hidden', 'correct', 'incorrect');
-            this.elements.flagFeedback.classList.add('incorrect');
-            this.elements.flagFeedback.textContent = `⏰ C'était ${this.state.currentCountry.name}`;
+            this.elements.flagFeedback.classList.add(isCorrect ? 'correct' : 'incorrect');
+            if (isCorrect) {
+                this.elements.flagFeedback.textContent = `✅ Correct ! +${points} points (temps écoulé)`;
+            } else {
+                this.elements.flagFeedback.textContent = `⏰ C'était ${correctAnswer}`;
+            }
         }
-        
-        // Mettre à jour les stats (0 points)
-        this.updateStats(0);
         
         // Passer automatiquement à la question suivante après un court délai
         setTimeout(() => {

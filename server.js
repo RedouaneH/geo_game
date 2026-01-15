@@ -362,24 +362,24 @@ io.on('connection', (socket) => {
             const timeLeft = room.settings.timer ? Math.max(0, room.settings.timer - timeElapsed) : null;
             
             // Si le timer est au-dessus de 3 secondes, le réduire à 3 secondes
-            if (timeLeft === null || timeLeft > 3) {
+            if (timeLeft === null || timeLeft > 1.5) {
                 // Annuler l'ancien timer
                 if (room.roundTimer) {
                     clearTimeout(room.roundTimer);
                     room.roundTimer = null;
                 }
                 
-                // Notifier les clients de réduire leur timer à 3 secondes
+                // Notifier les clients de réduire leur timer à 1.5 secondes
                 io.to(roomCode).emit('allPlayersAnswered', {
-                    newTimeLeft: 3
+                    newTimeLeft: 1.5
                 });
                 
-                // Programmer la fin du round dans 3 secondes
+                // Programmer la fin du round dans 1.5 secondes
                 room.roundTimer = setTimeout(() => {
                     endCurrentRound(roomCode);
-                }, 3000 + 500); // +500ms de marge
+                }, 1500 + 500); // +500ms de marge
             }
-            // Si le timer est déjà en dessous de 3 secondes, on laisse le timer actuel finir
+            // Si le timer est déjà en dessous de 1.5 secondes, on laisse le timer actuel finir
         }
     });
 
