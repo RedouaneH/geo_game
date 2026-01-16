@@ -195,6 +195,17 @@ class GeoQuiz {
                     showHint: false,
                     countries: 'random'
                 }
+            },
+            // Zones géographiques (bounding boxes) pour chaque continent
+            // Format: [[lat_sudOuest, lng_sudOuest], [lat_nordEst, lng_nordEst]]
+            continentBounds: {
+                'Europe': [[35, -12], [72, 45]],
+                'Asie': [[0, 40], [70, 150]],
+                'Afrique': [[-35, -18], [37, 52]],
+                'Amérique du Nord': [[5, -140], [75, -50]],
+                'Amérique du Sud': [[-56, -82], [13, -34]],
+                'Océanie': [[-47, 110], [5, 180]],
+                'all': [[-60, -180], [80, 180]]
             }
         };
 
@@ -203,6 +214,7 @@ class GeoQuiz {
             mode: null, // 'solo' ou 'multi'
             gameMode: 'location', // 'location' ou 'flags'
             difficulty: null,
+            continent: 'all', // 'all' ou nom du continent (géré via les cartes)
             currentRound: 0,
             score: 0,
             countries: [],
@@ -248,6 +260,9 @@ class GeoQuiz {
             // Solo
             modeSelectorBtns: document.querySelectorAll('.mode-selector-btn'),
             difficultyCards: document.querySelectorAll('.difficulty-card'),
+            difficultyScrollContainer: document.querySelector('.difficulty-scroll-container'),
+            difficultyNavLeft: document.querySelector('.difficulty-nav-left'),
+            difficultyNavRight: document.querySelector('.difficulty-nav-right'),
             startBtn: document.getElementById('start-btn'),
             backToModeBtn: document.getElementById('back-to-mode-btn'),
             // Lobby
@@ -852,6 +867,14 @@ class GeoQuiz {
         this.elements.difficultyCards.forEach(card => {
             card.addEventListener('click', () => this.selectDifficulty(card));
         });
+        
+        // Difficulty navigation buttons
+        if (this.elements.difficultyNavLeft) {
+            this.elements.difficultyNavLeft.addEventListener('click', () => this.scrollDifficulty('left'));
+        }
+        if (this.elements.difficultyNavRight) {
+            this.elements.difficultyNavRight.addEventListener('click', () => this.scrollDifficulty('right'));
+        }
 
         // Navigation buttons
         this.elements.startBtn.addEventListener('click', () => this.startSoloGame());
@@ -967,8 +990,45 @@ class GeoQuiz {
     selectDifficulty(card) {
         this.elements.difficultyCards.forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
-        this.state.difficulty = card.dataset.difficulty;
+        
+        // Vérifier si c'est une difficulté ou un continent
+        if (card.dataset.difficulty) {
+            this.state.difficulty = card.dataset.difficulty;
+            this.state.continent = 'all';
+        } else if (card.dataset.continent) {
+            // Pour un continent, utiliser la difficulté moyenne par défaut
+            this.state.difficulty = 'medium';
+            this.state.continent = card.dataset.continent;
+        }
+        
         this.elements.startBtn.disabled = false;
+    }
+    
+    scrollDifficulty(direction) {
+        const container = this.elements.difficultyScrollContainer;
+        if (!container) return;
+        
+        // Calculer la largeur d'une carte avec le gap
+        // Il y a 4 cartes visibles avec 3 gaps de 1.5rem entre elles
+        const gap = 24; // 1.5rem = 24px
+        const visibleWidth = container.offsetWidth;
+        // Largeur d'une carte = (largeur totale - 3 gaps) / 4
+        const cardWidth = (visibleWidth - (3 * gap)) / 4;
+        // Pour scroller d'une carte, on ajoute le gap
+        const scrollAmount = cardWidth + gap;
+        const currentScroll = container.scrollLeft;
+        
+        if (direction === 'left') {
+            container.scrollTo({
+                left: currentScroll - scrollAmount,
+                behavior: 'smooth'
+            });
+        } else {
+            container.scrollTo({
+                left: currentScroll + scrollAmount,
+                behavior: 'smooth'
+            });
+        }
     }
 
     startSoloGame() {
@@ -1030,9 +1090,10 @@ class GeoQuiz {
             // Pour le mode drapeaux, pas besoin d'attendre la carte
             this.nextRound();
         } else {
-            // Pour le mode carte, attendre l'initialisation
+            // Pour le mode carte, attendre l'initialisation et zoomer sur le continent
             setTimeout(() => {
                 this.map.invalidateSize();
+                this.setContinentView(); // Zoomer sur le continent sélectionné
                 this.nextRound();
             }, 100);
         }
@@ -1040,8 +1101,10 @@ class GeoQuiz {
 
     prepareCountries() {
         const difficulty = this.state.difficulty;
+        const continent = this.state.continent;
         let pool = [];
 
+        // Filtrage par difficulté
         if (difficulty === 'easy') {
             pool = COUNTRIES.filter(c => c.difficulty === 'easy');
         } else if (difficulty === 'medium') {
@@ -1055,7 +1118,22 @@ class GeoQuiz {
             pool = COUNTRIES.filter(c => c.difficulty === 'hard');
         }
 
-        this.state.countries = this.shuffleArray(pool).slice(0, this.config.totalRounds);
+        // Filtrage par continent
+        if (continent && continent !== 'all') {
+            pool = pool.filter(c => c.continent === continent);
+        }
+
+        // Si le pool est trop petit, prendre tous les pays du continent
+        if (pool.length < this.config.totalRounds && continent && continent !== 'all') {
+            pool = COUNTRIES.filter(c => c.continent === continent);
+        }
+
+        // Si toujours pas assez, prendre tous les pays disponibles
+        if (pool.length === 0) {
+            pool = [...COUNTRIES];
+        }
+
+        this.state.countries = this.shuffleArray(pool).slice(0, Math.min(this.config.totalRounds, pool.length));
     }
 
     shuffleArray(array) {
@@ -1287,6 +1365,7 @@ class GeoQuiz {
     onGameStarted(data) {
         this.state.mode = 'multi';
         this.state.gameMode = data.gameMode || 'location';
+        this.state.continent = 'all'; // Mode multijoueur utilise tous les continents par défaut
         this.state.currentRound = 0;
         this.state.score = 0;
         this.state.stats = { perfect: 0, good: 0, average: 0, missed: 0 };
@@ -1348,6 +1427,7 @@ class GeoQuiz {
         setTimeout(() => {
             if (this.map && this.state.gameMode !== 'flags') {
                 this.map.invalidateSize();
+                this.setContinentView(); // Zoomer sur le continent sélectionné
             }
         }, 100);
     }
@@ -1428,8 +1508,8 @@ class GeoQuiz {
             document.getElementById('map').style.display = 'block';
             this.elements.flagGameContainer.classList.add('hidden');
 
-            // Réinitialiser la vue de la carte
-            this.map.setView([20, 0], 2);
+            // Zoomer sur le continent sélectionné
+            this.setContinentView();
         }
 
         // Démarrer le timer si nécessaire
@@ -2023,9 +2103,8 @@ class GeoQuiz {
             zoom: 2,
             minZoom: 2,
             maxZoom: 10,
-            worldCopyJump: true,
-            maxBounds: [[-90, -180], [90, 180]],
-            maxBoundsViscosity: 1.0
+            worldCopyJump: false,
+            maxBounds: null
         });
 
         // Utiliser un fond de carte minimaliste sans détails internes (rivières, régions, etc.)
@@ -2043,6 +2122,30 @@ class GeoQuiz {
         if (this.geoJSONLoaded && this.countriesGeoJSON) {
             this.addBordersToMap();
         }
+    }
+
+    /**
+     * Ajuste la vue de la carte selon le continent sélectionné
+     */
+    setContinentView() {
+        const continent = this.state.continent || 'all';
+        const boundsConfig = this.config.continentBounds[continent] || this.config.continentBounds['all'];
+        
+        // Créer un objet LatLngBounds Leaflet
+        const bounds = L.latLngBounds(boundsConfig);
+        
+        // Calculer le padding adaptatif basé sur la taille de l'écran
+        const mapContainer = document.getElementById('map');
+        const padding = mapContainer ? [
+            Math.max(20, mapContainer.clientHeight * 0.05),
+            Math.max(20, mapContainer.clientWidth * 0.05)
+        ] : [20, 20];
+        
+        this.map.fitBounds(bounds, { 
+            padding: padding,
+            maxZoom: continent === 'all' ? 2.5 : 6,
+            animate: false
+        });
     }
 
     handleMapClick(e) {
@@ -2206,7 +2309,8 @@ class GeoQuiz {
             document.getElementById('map').style.display = 'block';
             this.elements.flagGameContainer.classList.add('hidden');
 
-            this.map.setView([20, 0], 2);
+            // Zoomer sur le continent sélectionné
+            this.setContinentView();
         }
 
         if (diffConfig.timer) {

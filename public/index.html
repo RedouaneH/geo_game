@@ -63,27 +63,71 @@
             
             <div class="difficulty-section">
                 <h2>Choisissez votre niveau</h2>
-                <div class="difficulty-cards">
-                    <div class="difficulty-card" data-difficulty="easy">
-                        <div class="card-icon">🌱</div>
-                        <h3>Facile</h3>
-                        <p>Pays célèbres • Aide visuelle • Temps illimité</p>
+                <div class="difficulty-navigation-wrapper">
+                    <button class="difficulty-nav-btn difficulty-nav-left" aria-label="Précédent">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z"/>
+                        </svg>
+                    </button>
+                    <div class="difficulty-scroll-container">
+                    <div class="difficulty-cards">
+                        <div class="difficulty-card" data-difficulty="easy">
+                            <div class="card-icon">🌱</div>
+                            <h3>Facile</h3>
+                            <p>Pays célèbres • Aide visuelle • Temps illimité</p>
+                        </div>
+                        <div class="difficulty-card" data-difficulty="medium">
+                            <div class="card-icon">🌿</div>
+                            <h3>Moyen</h3>
+                            <p>Tous les continents • Moins d'indices • 30 secondes</p>
+                        </div>
+                        <div class="difficulty-card" data-difficulty="hard">
+                            <div class="card-icon">🌲</div>
+                            <h3>Difficile</h3>
+                            <p>Pays obscurs • Aucun indice • 15 secondes</p>
+                        </div>
+                        <div class="difficulty-card" data-difficulty="random">
+                            <div class="card-icon">🎲</div>
+                            <h3>Aléatoire</h3>
+                            <p>N'importe quel pays • Surprise totale • 25 secondes</p>
+                        </div>
+                        <div class="difficulty-card" data-continent="Europe">
+                            <div class="card-icon">🇪🇺</div>
+                            <h3>Europe</h3>
+                            <p>Découvrez les pays européens</p>
+                        </div>
+                        <div class="difficulty-card" data-continent="Asie">
+                            <div class="card-icon">🌏</div>
+                            <h3>Asie</h3>
+                            <p>Explorez le continent asiatique</p>
+                        </div>
+                        <div class="difficulty-card" data-continent="Afrique">
+                            <div class="card-icon">🌍</div>
+                            <h3>Afrique</h3>
+                            <p>Parcourez les pays africains</p>
+                        </div>
+                        <div class="difficulty-card" data-continent="Amérique du Nord">
+                            <div class="card-icon">🌎</div>
+                            <h3>Amérique du Nord</h3>
+                            <p>Visitez l'Amérique du Nord</p>
+                        </div>
+                        <div class="difficulty-card" data-continent="Amérique du Sud">
+                            <div class="card-icon">🌎</div>
+                            <h3>Amérique du Sud</h3>
+                            <p>Découvrez l'Amérique du Sud</p>
+                        </div>
+                        <div class="difficulty-card" data-continent="Océanie">
+                            <div class="card-icon">🌏</div>
+                            <h3>Océanie</h3>
+                            <p>Explorez l'Océanie</p>
+                        </div>
                     </div>
-                    <div class="difficulty-card" data-difficulty="medium">
-                        <div class="card-icon">🌿</div>
-                        <h3>Moyen</h3>
-                        <p>Tous les continents • Moins d'indices • 30 secondes</p>
                     </div>
-                    <div class="difficulty-card" data-difficulty="hard">
-                        <div class="card-icon">🌲</div>
-                        <h3>Difficile</h3>
-                        <p>Pays obscurs • Aucun indice • 15 secondes</p>
-                    </div>
-                    <div class="difficulty-card" data-difficulty="random">
-                        <div class="card-icon">🎲</div>
-                        <h3>Aléatoire</h3>
-                        <p>N'importe quel pays • Surprise totale • 25 secondes</p>
-                    </div>
+                    <button class="difficulty-nav-btn difficulty-nav-right" aria-label="Suivant">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
