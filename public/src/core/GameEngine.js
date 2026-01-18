@@ -16,10 +16,11 @@ class GameEngine {
         this.mapManager = new MapManager();
         this.screenManager = new ScreenManager();
         this.socketClient = new SocketClient();
-        
-        // Plus de référence aux pays côté client - tout est géré par le serveur
-        // pour éviter la triche (pas d'accès aux noms, coordonnées, etc.)
-        
+
+        // Référence aux pays (sera chargée depuis countries.js global)
+        // Utilisé pour le mode solo uniquement, le mode multi utilise le serveur
+        this.countries = window.COUNTRIES || [];
+
         // Configuration du jeu
         this.config = {
             totalRounds: 10,

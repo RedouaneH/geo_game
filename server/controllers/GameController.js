@@ -116,14 +116,13 @@ class GameController {
                 timer: room.settings.timer
             };
         } else {
-            // Mode localisation - NE PAS ENVOYER LE NOM pour éviter la triche
+            // Mode localisation
             roundData = {
                 gameMode: room.gameMode,
                 roundNumber: room.gameState.currentRound,
                 totalRounds: room.gameState.totalRounds,
                 country: {
-                    // Envoyer uniquement le code ISO pour identifier le pays sur la carte
-                    code: country.code,
+                    name: country.name,
                     continent: country.continent,
                     hint: country.hint
                 },
