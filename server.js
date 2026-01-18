@@ -15,8 +15,8 @@ const GameController = require('./server/controllers/GameController');
 // Import de la configuration
 const { GAME_CONFIG } = require('./config');
 
-// Import des données de pays (nécessaire pour GameController)
-const COUNTRIES = require('./public/countries');
+// Import des données de pays (nécessaire pour GameController) - CÔTÉ SERVEUR UNIQUEMENT
+const COUNTRIES = require('./server/data/countries');
 
 // ==================== INITIALISATION ====================
 

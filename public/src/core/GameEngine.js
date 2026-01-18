@@ -17,8 +17,8 @@ class GameEngine {
         this.screenManager = new ScreenManager();
         this.socketClient = new SocketClient();
         
-        // Référence aux pays (sera chargée depuis countries.js global)
-        this.countries = window.COUNTRIES || [];
+        // Plus de référence aux pays côté client - tout est géré par le serveur
+        // pour éviter la triche (pas d'accès aux noms, coordonnées, etc.)
         
         // Configuration du jeu
         this.config = {
