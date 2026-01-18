@@ -1,14 +1,15 @@
 /**
- * Mapping des noms de pays français vers anglais (pour GeoJSON)
+ * Mapping des codes ISO vers noms de pays (codes uniquement côté client pour sécurité)
+ * Les noms complets ne sont plus exposés côté client pour éviter la triche
  * @type {Object.<string, string>}
  */
-export const COUNTRY_NAME_MAPPING = {
+export const COUNTRY_CODE_MAPPING = {
     // Europe
-    "France": "France",
-    "Allemagne": "Germany",
-    "Italie": "Italy",
-    "Espagne": "Spain",
-    "Royaume-Uni": "United Kingdom",
+    "FRA": "fr",
+    "DEU": "de",
+    "ITA": "it",
+    "ESP": "es",
+    "GBR": "gb",
     "Portugal": "Portugal",
     "Grèce": "Greece",
     "Suisse": "Switzerland",

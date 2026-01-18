@@ -99,8 +99,9 @@ class GameController {
         if (room.gameMode === 'flags') {
             // Mode drapeaux: créer les choix multiples
             const choices = createFlagChoices(country, this.allCountries);
-            
+
             roundData = {
+                gameMode: room.gameMode,
                 roundNumber: room.gameState.currentRound,
                 totalRounds: room.gameState.totalRounds,
                 country: {
@@ -117,6 +118,7 @@ class GameController {
         } else {
             // Mode localisation
             roundData = {
+                gameMode: room.gameMode,
                 roundNumber: room.gameState.currentRound,
                 totalRounds: room.gameState.totalRounds,
                 country: {
