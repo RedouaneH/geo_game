@@ -47,87 +47,45 @@
             </div>
             <p class="tagline">Mode Solo</p>
             
-            <div class="mode-select-section">
-                <h2>Mode de jeu</h2>
-                <div class="game-mode-selector">
-                    <button class="mode-selector-btn selected" data-mode="location">
-                        <span class="mode-icon">📍</span>
-                        <span>Localisation</span>
-                    </button>
-                    <button class="mode-selector-btn" data-mode="flags">
-                        <span class="mode-icon">🏴</span>
-                        <span>Drapeaux</span>
-                    </button>
+            <div class="solo-settings">
+                <div class="setting-group">
+                    <label for="solo-game-mode">
+                        <span class="setting-icon">🎮</span>
+                        Mode de jeu
+                    </label>
+                    <select id="solo-game-mode" class="solo-select">
+                        <option value="location" selected>📍 Localisation</option>
+                        <option value="flags">🏴 Drapeaux</option>
+                    </select>
                 </div>
-            </div>
-            
-            <div class="difficulty-section">
-                <h2>Choisissez votre niveau</h2>
-                <div class="difficulty-navigation-wrapper">
-                    <button class="difficulty-nav-btn difficulty-nav-left" aria-label="Précédent">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z"/>
-                        </svg>
-                    </button>
-                    <div class="difficulty-scroll-container">
-                    <div class="difficulty-cards">
-                        <div class="difficulty-card" data-difficulty="easy">
-                            <div class="card-icon">🌱</div>
-                            <h3>Facile</h3>
-                            <p>Pays célèbres • Aide visuelle • Temps illimité</p>
-                        </div>
-                        <div class="difficulty-card" data-difficulty="medium">
-                            <div class="card-icon">🌿</div>
-                            <h3>Moyen</h3>
-                            <p>Tous les continents • Moins d'indices • 30 secondes</p>
-                        </div>
-                        <div class="difficulty-card" data-difficulty="hard">
-                            <div class="card-icon">🌲</div>
-                            <h3>Difficile</h3>
-                            <p>Pays obscurs • Aucun indice • 15 secondes</p>
-                        </div>
-                        <div class="difficulty-card" data-difficulty="random">
-                            <div class="card-icon">🎲</div>
-                            <h3>Aléatoire</h3>
-                            <p>N'importe quel pays • Surprise totale • 25 secondes</p>
-                        </div>
-                        <div class="difficulty-card" data-continent="Europe">
-                            <div class="card-icon">🇪🇺</div>
-                            <h3>Europe</h3>
-                            <p>Découvrez les pays européens</p>
-                        </div>
-                        <div class="difficulty-card" data-continent="Asie">
-                            <div class="card-icon">🌏</div>
-                            <h3>Asie</h3>
-                            <p>Explorez le continent asiatique</p>
-                        </div>
-                        <div class="difficulty-card" data-continent="Afrique">
-                            <div class="card-icon">🌍</div>
-                            <h3>Afrique</h3>
-                            <p>Parcourez les pays africains</p>
-                        </div>
-                        <div class="difficulty-card" data-continent="Amérique du Nord">
-                            <div class="card-icon">🌎</div>
-                            <h3>Amérique du Nord</h3>
-                            <p>Visitez l'Amérique du Nord</p>
-                        </div>
-                        <div class="difficulty-card" data-continent="Amérique du Sud">
-                            <div class="card-icon">🌎</div>
-                            <h3>Amérique du Sud</h3>
-                            <p>Découvrez l'Amérique du Sud</p>
-                        </div>
-                        <div class="difficulty-card" data-continent="Océanie">
-                            <div class="card-icon">🌏</div>
-                            <h3>Océanie</h3>
-                            <p>Explorez l'Océanie</p>
-                        </div>
-                    </div>
-                    </div>
-                    <button class="difficulty-nav-btn difficulty-nav-right" aria-label="Suivant">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
-                        </svg>
-                    </button>
+
+                <div class="setting-group">
+                    <label for="solo-difficulty">
+                        <span class="setting-icon">⚡</span>
+                        Difficulté
+                    </label>
+                    <select id="solo-difficulty" class="solo-select">
+                        <option value="easy" selected>🌱 Facile - Pays célèbres</option>
+                        <option value="medium">🌿 Moyen - Tous pays</option>
+                        <option value="hard">🌲 Difficile - Pays obscurs</option>
+                        <option value="random">🎲 Aléatoire - Surprise</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label for="solo-continent">
+                        <span class="setting-icon">🌍</span>
+                        Continent
+                    </label>
+                    <select id="solo-continent" class="solo-select">
+                        <option value="all" selected>🌍 Tous les continents</option>
+                        <option value="Europe">🇪🇺 Europe</option>
+                        <option value="Asie">🌏 Asie</option>
+                        <option value="Afrique">🌍 Afrique</option>
+                        <option value="Amérique du Nord">🌎 Amérique du Nord</option>
+                        <option value="Amérique du Sud">🌎 Amérique du Sud</option>
+                        <option value="Océanie">🌏 Océanie</option>
+                    </select>
                 </div>
             </div>
 
@@ -138,7 +96,7 @@
                     </svg>
                     <span>Retour</span>
                 </button>
-                <button id="start-btn" class="btn-primary" disabled>
+                <button id="start-btn" class="btn-primary">
                     <span>Commencer l'aventure</span>
                     <svg viewBox="0 0 24 24" width="24" height="24">
                         <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/>
@@ -254,6 +212,18 @@
                         <option value="medium">Moyen (Tous pays)</option>
                         <option value="hard">Difficile (Pays obscurs)</option>
                         <option value="random" selected>Aléatoire (Surprise totale)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label for="setting-continent">Continent</label>
+                    <select id="setting-continent">
+                        <option value="all" selected>🌍 Tous les continents</option>
+                        <option value="Europe">🇪🇺 Europe</option>
+                        <option value="Asie">🌏 Asie</option>
+                        <option value="Afrique">🌍 Afrique</option>
+                        <option value="Amérique du Nord">🌎 Amérique du Nord</option>
+                        <option value="Amérique du Sud">🌎 Amérique du Sud</option>
+                        <option value="Océanie">🌏 Océanie</option>
                     </select>
                 </div>
             </div>
@@ -486,6 +456,14 @@
                 <div class="full-leaderboard" id="full-leaderboard">
                     <!-- Autres joueurs si > 3 -->
                 </div>
+                
+                <!-- Récapitulatif des questions -->
+                <div class="rounds-summary" id="rounds-summary">
+                    <h2>📋 Récapitulatif des questions</h2>
+                    <div class="rounds-list" id="rounds-list">
+                        <!-- Questions ajoutées dynamiquement -->
+                    </div>
+                </div>
             </div>
             
             <div class="end-buttons">
@@ -509,6 +487,6 @@
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="countries.js"></script>
-    <script src="game.js"></script>
+    <script type="module" src="game.js"></script>
 </body>
 </html>

@@ -1,0 +1,186 @@
+/**
+ * Mapping des noms de pays français vers anglais (pour GeoJSON)
+ * @type {Object.<string, string>}
+ */
+export const COUNTRY_NAME_MAPPING = {
+    // Europe
+    "France": "France",
+    "Allemagne": "Germany",
+    "Italie": "Italy",
+    "Espagne": "Spain",
+    "Royaume-Uni": "United Kingdom",
+    "Portugal": "Portugal",
+    "Grèce": "Greece",
+    "Suisse": "Switzerland",
+    "Pays-Bas": "Netherlands",
+    "Belgique": "Belgium",
+    "Pologne": "Poland",
+    "Suède": "Sweden",
+    "Norvège": "Norway",
+    "Finlande": "Finland",
+    "Autriche": "Austria",
+    "République Tchèque": "Czech Republic",
+    "Irlande": "Ireland",
+    "Danemark": "Denmark",
+    "Hongrie": "Hungary",
+    "Roumanie": "Romania",
+    "Ukraine": "Ukraine",
+    "Croatie": "Croatia",
+    "Slovénie": "Slovenia",
+    "Slovaquie": "Slovakia",
+    "Estonie": "Estonia",
+    "Lettonie": "Latvia",
+    "Lituanie": "Lithuania",
+    "Albanie": "Albania",
+    "Macédoine du Nord": "Macedonia",
+    "Monténégro": "Montenegro",
+    "Luxembourg": "Luxembourg",
+    "Moldavie": "Moldova",
+    "Bosnie-Herzégovine": "Bosnia and Herzegovina",
+    "Serbie": "Serbia",
+    // Asie
+    "Chine": "China",
+    "Japon": "Japan",
+    "Inde": "India",
+    "Russie": "Russia",
+    "Corée du Sud": "South Korea",
+    "Thaïlande": "Thailand",
+    "Vietnam": "Vietnam",
+    "Indonésie": "Indonesia",
+    "Turquie": "Turkey",
+    "Philippines": "Philippines",
+    "Malaisie": "Malaysia",
+    "Pakistan": "Pakistan",
+    "Bangladesh": "Bangladesh",
+    "Iran": "Iran",
+    "Irak": "Iraq",
+    "Arabie Saoudite": "Saudi Arabia",
+    "Kazakhstan": "Kazakhstan",
+    "Myanmar": "Myanmar",
+    "Népal": "Nepal",
+    "Cambodge": "Cambodia",
+    "Sri Lanka": "Sri Lanka",
+    "Ouzbékistan": "Uzbekistan",
+    "Turkménistan": "Turkmenistan",
+    "Tadjikistan": "Tajikistan",
+    "Kirghizistan": "Kyrgyzstan",
+    "Laos": "Laos",
+    "Mongolie": "Mongolia",
+    "Bhoutan": "Bhutan",
+    "Azerbaïdjan": "Azerbaijan",
+    "Géorgie": "Georgia",
+    "Arménie": "Armenia",
+    "Jordanie": "Jordan",
+    "Liban": "Lebanon",
+    "Koweït": "Kuwait",
+    "Oman": "Oman",
+    "Yémen": "Yemen",
+    "Afghanistan": "Afghanistan",
+    // Afrique
+    "Égypte": "Egypt",
+    "Maroc": "Morocco",
+    "Afrique du Sud": "South Africa",
+    "Kenya": "Kenya",
+    "Nigeria": "Nigeria",
+    "Algérie": "Algeria",
+    "Tunisie": "Tunisia",
+    "Éthiopie": "Ethiopia",
+    "Ghana": "Ghana",
+    "Tanzanie": "Tanzania",
+    "Côte d'Ivoire": "Ivory Coast",
+    "Sénégal": "Senegal",
+    "Cameroun": "Cameroon",
+    "Madagascar": "Madagascar",
+    "Ouganda": "Uganda",
+    "République Démocratique du Congo": "Democratic Republic of the Congo",
+    "Mozambique": "Mozambique",
+    "Zimbabwe": "Zimbabwe",
+    "Angola": "Angola",
+    "Burkina Faso": "Burkina Faso",
+    "Mali": "Mali",
+    "Niger": "Niger",
+    "Tchad": "Chad",
+    "Soudan": "Sudan",
+    "Libye": "Libya",
+    "Mauritanie": "Mauritania",
+    "Namibie": "Namibia",
+    "Botswana": "Botswana",
+    "Zambie": "Zambia",
+    "Malawi": "Malawi",
+    "Rwanda": "Rwanda",
+    "Bénin": "Benin",
+    "Togo": "Togo",
+    "Gabon": "Gabon",
+    "Congo": "Republic of the Congo",
+    "Centrafrique": "Central African Republic",
+    "Érythrée": "Eritrea",
+    "Somalie": "Somalia",
+    "Djibouti": "Djibouti",
+    // Amérique du Nord
+    "États-Unis": "United States of America",
+    "Canada": "Canada",
+    "Mexique": "Mexico",
+    "Cuba": "Cuba",
+    "Guatemala": "Guatemala",
+    "Honduras": "Honduras",
+    "Nicaragua": "Nicaragua",
+    "Costa Rica": "Costa Rica",
+    "Panama": "Panama",
+    "Jamaïque": "Jamaica",
+    "Haïti": "Haiti",
+    "République Dominicaine": "Dominican Republic",
+    "Belize": "Belize",
+    "El Salvador": "El Salvador",
+    "Trinité-et-Tobago": "Trinidad and Tobago",
+    "Bahamas": "The Bahamas",
+    // Amérique du Sud
+    "Brésil": "Brazil",
+    "Argentine": "Argentina",
+    "Chili": "Chile",
+    "Pérou": "Peru",
+    "Colombie": "Colombia",
+    "Venezuela": "Venezuela",
+    "Équateur": "Ecuador",
+    "Bolivie": "Bolivia",
+    "Paraguay": "Paraguay",
+    "Uruguay": "Uruguay",
+    "Guyana": "Guyana",
+    "Suriname": "Suriname",
+    // Océanie
+    "Australie": "Australia",
+    "Nouvelle-Zélande": "New Zealand",
+    "Fidji": "Fiji",
+    "Papouasie-Nouvelle-Guinée": "Papua New Guinea",
+    "Vanuatu": "Vanuatu",
+    "Îles Salomon": "Solomon Islands",
+    "Samoa": "Samoa",
+    "Tonga": "Tonga",
+    "Micronésie": "Federated States of Micronesia",
+    "Palaos": "Palau",
+    "Kiribati": "Kiribati",
+    "Nauru": "Nauru",
+    "Tuvalu": "Tuvalu"
+};
+
+/**
+ * Convertit un nom de pays français en anglais
+ * @param {string} frenchName - Nom français du pays
+ * @returns {string} Nom anglais du pays (ou le nom français si pas de mapping)
+ */
+export function mapCountryName(frenchName) {
+    return COUNTRY_NAME_MAPPING[frenchName] || frenchName;
+}
+
+/**
+ * Trouve le nom français d'un pays à partir du nom anglais du GeoJSON
+ * @param {string} englishName - Nom anglais du pays
+ * @returns {string} Nom français du pays (ou le nom anglais si pas de mapping inverse)
+ */
+export function getCountryFrenchName(englishName) {
+    for (const [frenchName, engName] of Object.entries(COUNTRY_NAME_MAPPING)) {
+        if (engName === englishName) {
+            return frenchName;
+        }
+    }
+    return englishName;
+}

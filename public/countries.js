@@ -197,3 +197,12 @@ const COUNTRIES = [
     { name: "Nauru", lat: -0.5228, lng: 166.9315, continent: "Océanie", difficulty: "hard", hint: "Plus petite république du monde", code: "nr" },
     { name: "Tuvalu", lat: -7.1095, lng: 177.6493, continent: "Océanie", difficulty: "hard", hint: "Un des plus petits pays du monde", code: "tv" }
 ];
+
+// Compatibilité Node.js et navigateur
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = COUNTRIES;
+}
+
+if (typeof window !== 'undefined') {
+    window.COUNTRIES = COUNTRIES;
+}
