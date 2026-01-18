@@ -144,6 +144,12 @@ class Room {
         if (newSettings.continent !== undefined) {
             this.settings.continent = newSettings.continent;
         }
+        if (newSettings.difficulty !== undefined) {
+            this.difficulty = newSettings.difficulty;
+        }
+        if (newSettings.gameMode !== undefined) {
+            this.gameMode = newSettings.gameMode;
+        }
     }
 
     /**
